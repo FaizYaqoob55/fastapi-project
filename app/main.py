@@ -1,16 +1,22 @@
 from fastapi import FastAPI
+from app.database import engine,Base
 
 app = FastAPI(title="My FastAPI Application")
 
+@app.on_event('startup')
+def start_db():
+    Base.metadata.create_all(bind=engine)
+
+
+
+
+
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "database connected"}
 
 
  
- 
-
-
 
 
 
