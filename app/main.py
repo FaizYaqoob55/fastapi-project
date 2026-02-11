@@ -1,23 +1,19 @@
 from fastapi import FastAPI
 from app.database import engine,Base
+from app import models
+import uvicorn
 
 app = FastAPI(title="My FastAPI Application")
 
 @app.on_event('startup')
-def start_db():
+def startup():
     Base.metadata.create_all(bind=engine)
-
-
 
 
 
 @app.get("/health")
 def health():
     return {"status": "database connected"}
-
-
- 
-
 
 
 
