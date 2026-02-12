@@ -1,18 +1,24 @@
+import os 
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-DB_CONNECTION="postgresql://postgres:faiz@localhost:5432/fastapi_db"
 
-engine=create_engine(DB_CONNECTION,echo=True)
+load_dotenv()
+
+SQLALCHEMY_DATABASE_URL=os.getenv('DB_CONNECTION')
+
+engine=create_engine(SQLALCHEMY_DATABASE_URL,echo=True)
 
 Sessionlocal=sessionmaker(
     autocommit=False,
     autoflush=False,
-    bind=engine
+    bind=engine 
 
 )
 
 Base=declarative_base()
+
 
 
