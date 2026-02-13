@@ -15,8 +15,6 @@ class User(Base):
 
 
 
-
-
 class Team(Base):
     __tablename__='team'
 
