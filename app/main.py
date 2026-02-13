@@ -87,10 +87,6 @@ def update_user(id: int, updated_user: schemas.UserCreate, db: Session = Depends
 
 
 
-
-
-
-
 @app.get("/health")
 def health():
     return {"status": "database connected"}
