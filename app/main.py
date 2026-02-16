@@ -1,6 +1,6 @@
 from fastapi import FastAPI,Depends,HTTPException,status,Response
 from app.schemas.dependencies import Usercreate ,LoginRequest
-from app.database import engine,Base,Sessionlocal
+from app.database import engine, Base, get_db
 from sqlalchemy.orm import Session
 from app.models import User
 from app.utils.security import hash_password, verify_password
@@ -17,12 +17,7 @@ app = FastAPI(title="My FastAPI Application")
 # def startup():
 Base.metadata.create_all(bind=engine)
 
-def get_db():
-    db=Sessionlocal()
-    try :
-        yield db 
-    finally:
-        db.close()
+
         
 @app.post('/user_register')
 def register(user:Usercreate,db:Session=Depends(get_db)):
@@ -91,7 +86,7 @@ def login(request:LoginRequest,db:Session=Depends(get_db)):
     if not verify_password(request.password,user.password):
         raise HTTPException(status_code=400,detail='Invalid  password')
     
-    token_data = {"sub": user.email}
+    token_data = {"sub": user.email,"role":user.role.value}
     access_token = create_access_token(token_data)
     refresh_token = refresh_access_token(token_data)
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
@@ -105,7 +100,7 @@ def refresh_token(request:LoginRequest,db:Session=Depends(get_db)):
     if not verify_password(request.password,user.password):
         raise HTTPException(status_code=400,detail="Invalid password")
     
-    token_data={"sub":user.email}
+    token_data={"sub":user.email,"role":user.role.value}
     refresh_token=refresh_access_token(token_data)
     return {"refresh_token":refresh_token,"token_type":"bearer"}
 

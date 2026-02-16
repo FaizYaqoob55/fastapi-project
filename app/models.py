@@ -1,5 +1,6 @@
-from sqlalchemy import Column,Integer,String,ForeignKey
+from sqlalchemy import Column,Integer,String,ForeignKey,Enum
 from app.database import Base
+from app.model.role import UserRole
 from sqlalchemy.orm import relationship
 
 
@@ -11,6 +12,8 @@ class User(Base):
     name=Column(String(100),nullable=False)
     email=Column(String(100),unique=True,index=True,nullable=False)
     password=Column(String(100),nullable=False)
+    role=Column(Enum(UserRole),default=UserRole.viewer,nullable=False)
+
 
 
 
