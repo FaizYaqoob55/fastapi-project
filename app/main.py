@@ -1,12 +1,14 @@
 from fastapi import FastAPI,Depends,HTTPException,status,Response
-from app.schemas.dependencies import Usercreate 
+from app.schemas.dependencies import Usercreate ,LoginRequest
 from app.database import engine,Base,Sessionlocal
 from sqlalchemy.orm import Session
 from app.models import User
-from app.utils.security import hash_password
+from app.utils.security import hash_password, verify_password
 import uvicorn
+import jwt
 from app import models
 from . import models, schemas
+from app.utils.security import create_access_token, refresh_access_token
 
 
 app = FastAPI(title="My FastAPI Application")
@@ -80,7 +82,32 @@ def update_user(id: int, updated_user: schemas.UserCreate, db: Session = Depends
     db.commit()
     return user_query.first()
 
+@app.post("/login")
+def login(request:LoginRequest,db:Session=Depends(get_db)):
+    user=db.query(User).filter(User.email==request.email).first()
+    if not user:
+        raise HTTPException(status_code=400,detail='Invalid email ')
+    
+    if not verify_password(request.password,user.password):
+        raise HTTPException(status_code=400,detail='Invalid  password')
+    
+    token_data = {"sub": user.email}
+    access_token = create_access_token(token_data)
+    refresh_token = refresh_access_token(token_data)
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
+
+@app.post("/refresh-token")
+def refresh_token(request:LoginRequest,db:Session=Depends(get_db)):
+    user=db.query(User).filter(User.email==request.email).first()
+    if not user:
+        raise HTTPException(status_code=400,detail="Invalid token")
+    if not verify_password(request.password,user.password):
+        raise HTTPException(status_code=400,detail="Invalid password")
+    
+    token_data={"sub":user.email}
+    refresh_token=refresh_access_token(token_data)
+    return {"refresh_token":refresh_token,"token_type":"bearer"}
 
 
 

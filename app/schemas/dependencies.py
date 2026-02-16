@@ -2,6 +2,8 @@ from pydantic import BaseModel  , EmailStr
 
 
 
+
+
 class Usercreate(BaseModel):
     name:str
     password:str
@@ -15,3 +17,6 @@ class UserResponse(BaseModel):
     class Config():
         for_attributes=True
 
+class LoginRequest(BaseModel):
+    email:EmailStr
+    password:str
