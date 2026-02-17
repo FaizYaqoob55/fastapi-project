@@ -7,13 +7,29 @@ from app.database import get_db
 from app.models import User
 from app.utils.security import ALGORITHM, SECRET_KEY
 from fastapi.security import OAuth2PasswordBearer
+from typing import Optional
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 
+class TeamCreate(BaseModel):
+    name: str
+
+class TeamUpdate(BaseModel):
+    name: Optional[str] = None
 
 
+class TeamResponse(BaseModel):
+    id: int
+    name: str
+    lead_id: int
 
+    class Config:
+        from_attributes = True
+
+
+class TeamMemberCreate(BaseModel):
+    user_id: int
 
 
 class Usercreate(BaseModel):
