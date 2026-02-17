@@ -7,5 +7,11 @@ class UserRole(str, Enum):
     developer = "developer"
     viewer = "viewer"
 
+class ProjectStatus(str,Enum):
+    active='active'
+    inactive='inactive'
+    completed='completed'
+    
+
 
     

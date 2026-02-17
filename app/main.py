@@ -2,14 +2,17 @@ from fastapi import FastAPI, Depends, HTTPException, status, Response
 from app.schemas.dependencies import Usercreate, LoginRequest
 from app.database import engine, Base, get_db
 from sqlalchemy.orm import Session
-from app.models import User
+from app.models import User,Team,TeamMember,Project
 from app.utils.security import hash_password, verify_password, create_access_token, refresh_access_token, SECRET_KEY, ALGORITHM
 import uvicorn
 import jwt
 from app import models, schemas
-from app.routes import admin
+from app.routes import admin, project
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, HTTPBearer, HTTPAuthorizationCredentials
 from app.model.role import UserRole
+from app.routes import team
+from app.schemas.dependencies import get_current_user, requires_role
+
 
 app = FastAPI(title="My FastAPI Application")
 
@@ -18,6 +21,9 @@ app = FastAPI(title="My FastAPI Application")
 Base.metadata.create_all(bind=engine)
 
 app.include_router(admin.router)
+app.include_router(team.router)
+app.include_router(project.router)
+
 
 # Security schemes
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
@@ -71,7 +77,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     user = db.query(models.User).filter(models.User.email == email).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    # Attach resolved role (enum) to user for downstream checks
     validated = _validate_role_str(role_str)
     user._token_role = validated
     return user
