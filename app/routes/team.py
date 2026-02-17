@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Team, TeamMeamber, User
+from app.models import Team, TeamMember, User
 from app.schemas.dependencies import TeamCreate, TeamResponse, TeamUpdate, TeamMemberCreate
 from app.schemas.dependencies import get_current_user, requires_role
 from app.models import User
@@ -40,3 +40,39 @@ def update_team(team_id: int, team_update: TeamUpdate, db: Session = Depends(get
     db.commit()
     db.refresh(team)
     return team
+
+
+
+
+@router.post("/{team_id}/members")
+def add_member(team_id: int, member: TeamMemberCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    team = db.query(Team).filter(Team.id == team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    if team.lead_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to add members to this team")
+    user = db.query(User).filter(User.id == member.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user in team.members:
+        raise HTTPException(status_code=400, detail="User is already a member of the team")
+    team.members.append(user)
+    db.commit()
+    return {"message": "Member added successfully"}
+
+@router.delete("/{team_id}/remove-member")
+def remove_member(team_id: int, member: TeamMemberCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    team = db.query(Team).filter(Team.id == team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    if team.lead_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to remove members from this team")
+    user = db.query(User).filter(User.id == member.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user not in team.members:
+        raise HTTPException(status_code=400, detail="User is not a member of the team")
+    team.members.remove(user)
+    db.commit()
+    return {"message": "Member removed successfully"}
+

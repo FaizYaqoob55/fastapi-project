@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, Response
 from app.schemas.dependencies import Usercreate, LoginRequest
 from app.database import engine, Base, get_db
 from sqlalchemy.orm import Session
-from app.models import User,Team,TeamMeamber,Project
+from app.models import User,Team,TeamMember,Project
 from app.utils.security import hash_password, verify_password, create_access_token, refresh_access_token, SECRET_KEY, ALGORITHM
 import uvicorn
 import jwt
@@ -21,6 +21,7 @@ Base.metadata.create_all(bind=engine)
 
 app.include_router(admin.router)
 app.include_router(team.router)
+
 
 # Security schemes
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
