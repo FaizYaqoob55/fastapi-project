@@ -24,10 +24,24 @@ class Team(Base):
     __tablename__='team'
 
     id=(Column(Integer,primary_key=True,index=True))
-    name=(Column(String(100),nullable=False))
+    name=(Column(String(100),unique=True,nullable=False))
 
-    users=relationship('Users',back_populates='team')
-    project=relationship('Project',back_populates='team')
+    lead_id = Column(Integer, ForeignKey('userr.id'), nullable=False)
+    lead=relationship('User', foreign_keys=[lead_id])
+
+
+    # users=relationship('Users',back_populates='team')
+    # project=relationship('Project',back_populates='team')
+
+class TeamMeamber(Base):
+    __tablename__='team_member'
+
+    id=(Column(Integer,primary_key=True,index=True))
+    team_id=Column(Integer,ForeignKey('team.id'))
+    user_id=Column(Integer,ForeignKey('userr.id',ondelete='CASCADE'))
+
+   
+
 
 
 class Users(Base):
