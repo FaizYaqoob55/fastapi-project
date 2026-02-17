@@ -11,6 +11,7 @@ from app.routes import admin, project
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, HTTPBearer, HTTPAuthorizationCredentials
 from app.model.role import UserRole
 from app.routes import team
+from app.schemas.dependencies import get_current_user, requires_role
 
 
 app = FastAPI(title="My FastAPI Application")
