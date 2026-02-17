@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, Response
 from app.schemas.dependencies import Usercreate, LoginRequest
 from app.database import engine, Base, get_db
 from sqlalchemy.orm import Session
-from app.models import User,Team,TeamMeamber,Users,Project
+from app.models import User,Team,TeamMeamber,Project
 from app.utils.security import hash_password, verify_password, create_access_token, refresh_access_token, SECRET_KEY, ALGORITHM
 import uvicorn
 import jwt
@@ -10,6 +10,8 @@ from app import models, schemas
 from app.routes import admin
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, HTTPBearer, HTTPAuthorizationCredentials
 from app.model.role import UserRole
+from app.routes import team
+
 
 app = FastAPI(title="My FastAPI Application")
 
@@ -18,6 +20,7 @@ app = FastAPI(title="My FastAPI Application")
 Base.metadata.create_all(bind=engine)
 
 app.include_router(admin.router)
+app.include_router(team.router)
 
 # Security schemes
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")

@@ -40,29 +40,38 @@ class TeamMeamber(Base):
     team_id=Column(Integer,ForeignKey('team.id'))
     user_id=Column(Integer,ForeignKey('userr.id',ondelete='CASCADE'))
 
-   
-
-
-
-class Users(Base):
-    __tablename__='users'
-
-    id=(Column(Integer,primary_key=True,index=True))
-    name=(Column(String(100),nullable=False))
-    email=(Column(String(100),unique=True,index=True,nullable=True))
-
-    team_id=Column(Integer,ForeignKey('team.id'))
-
-    team=relationship('Team',back_populates='users')
-
 class Project(Base):
-    __tablename__='project'
+    __tablename__ = "projects"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String)
 
-    id=(Column(Integer,primary_key=True,index=True))
-    name=(Column(String(100),nullable=False))
-    team_id=Column(Integer,ForeignKey('team.id'))
+# class users(Base):
+#     __tablename__='users'
 
-    team=relationship('Team',back_populates='project')
+#     id=(Column(Integer,primary_key=True,index=True))
+#     name=Column(String(100),nullable=False)
+#     email=Column(String(100),unique=True,index=True,nullable=False)
+#     team_id=Column(Integer,ForeignKey('team.id'))
+
+# class Users(Base):
+#     __tablename__='users'
+
+#     id=(Column(Integer,primary_key=True,index=True))
+#     name=(Column(String(100),nullable=False))
+#     email=(Column(String(100),unique=True,index=True,nullable=True))
+
+#     team_id=Column(Integer,ForeignKey('team.id'))
+
+#     team=relationship('Team',back_populates='users')
+
+# class Project(Base):
+#     __tablename__='project'
+
+#     id=(Column(Integer,primary_key=True,index=True))
+#     name=(Column(String(100),nullable=False))
+#     team_id=Column(Integer,ForeignKey('team.id'))
+
+#     team=relationship('Team',back_populates='project')
 
 
 
