@@ -42,4 +42,10 @@ class TeamMember(Base):
 class Project(Base):
     __tablename__ = 'projects'
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String)
+    name=Column(String,unique=True,index=True)
+    description=Column(String)
+    status=Column(Enum('active','inactive','completed',name='project_status'),default='active')
+    team_id=Column(Integer,ForeignKey('team.id'))
+    team=relationship('Team',backref='projects')
+    
+    

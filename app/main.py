@@ -7,7 +7,7 @@ from app.utils.security import hash_password, verify_password, create_access_tok
 import uvicorn
 import jwt
 from app import models, schemas
-from app.routes import admin
+from app.routes import admin, project
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, HTTPBearer, HTTPAuthorizationCredentials
 from app.model.role import UserRole
 from app.routes import team
@@ -21,6 +21,7 @@ Base.metadata.create_all(bind=engine)
 
 app.include_router(admin.router)
 app.include_router(team.router)
+app.include_router(project.router)
 
 
 # Security schemes
@@ -75,7 +76,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     user = db.query(models.User).filter(models.User.email == email).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    # Attach resolved role (enum) to user for downstream checks
     validated = _validate_role_str(role_str)
     user._token_role = validated
     return user

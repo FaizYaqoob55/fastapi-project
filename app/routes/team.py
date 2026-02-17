@@ -36,6 +36,11 @@ def update_team(team_id: int, team_update: TeamUpdate, db: Session = Depends(get
     if team.lead_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to update this team")
     if team_update.name:
+        existing_team = db.query(Team).filter(Team.name == team_update.name).first()
+        if existing_team and existing_team.id != team_id:
+            raise HTTPException(status_code=400, detail="Team name already exists")
+
+    if team_update.name:
         team.name = team_update.name
     db.commit()
     db.refresh(team)
