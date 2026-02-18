@@ -7,7 +7,7 @@ from app.utils.security import hash_password, verify_password, create_access_tok
 import uvicorn
 import jwt
 from app import models, schemas
-from app.routes import admin, project
+from app.routes import action_item, admin, growth_session, project, session_note, team
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, HTTPBearer, HTTPAuthorizationCredentials
 from app.model.role import UserRole
 from app.routes import team
@@ -23,7 +23,10 @@ Base.metadata.create_all(bind=engine)
 app.include_router(admin.router)
 app.include_router(team.router)
 app.include_router(project.router)
-
+app.include_router(growth_session.router)
+app.include_router(session_note.router)
+# app.include_router(action_item.router)
+app.include_router(action_item.router)
 
 # Security schemes
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
@@ -42,10 +45,8 @@ def _normalize_role_value(raw_role):
 def _validate_role_str(role_str: str) -> UserRole | None:
     if role_str is None:
         return None
-    # Try matching by name first
     if role_str in UserRole.__members__:
         return UserRole[role_str]
-    # Try matching by value (handles enum values that may be tuples)
     for member in UserRole:
         member_val = member.value
         if isinstance(member_val, (list, tuple)):

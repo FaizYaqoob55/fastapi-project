@@ -12,6 +12,13 @@ class ProjectStatus(str,Enum):
     inactive='inactive'
     completed='completed'
     
+class SessionStatus(str,Enum):
+    PLANNED='PLANNED'
+    COMPLETED='COMPLETED'
+    CANCLLED='CANCELLED'
 
+class Action_Status(str,Enum):
+    PENDING ='PENDING'
+    DONE = 'DONE'
 
     
