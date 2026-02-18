@@ -68,18 +68,18 @@ class SessionNote(Base):
     __tablename__='session_note'
     id=Column(Integer,primary_key=True,index=True)
     content=Column(String,nullable=False)
-    session_id=Column(Integer,ForeignKey('growth_session.id'))
-    session=relationship('GrowthSession',back_populates='notes')
+    session_id=Column(Integer,ForeignKey('groth_session.id'))
+    session=relationship('GrothSession',back_populates='notes')
 
 
 class ActionItem(Base):
     __tablename__='action_items'
     id=Column(Integer,primary_key=True,index=True)
-    title=Column(String,nullable=False)
+    titlr=Column(String,nullable=False)
     completed=Column(Boolean,default=False)
     status=Column(Enum(Action_Status),default=Action_Status.PENDING)
-    session_id=Column(Integer,ForeignKey('growth_session.id'))
-    session=relationship('GrowthSession',back_populates='action_items')
+    session_id=Column(Integer,ForeignKey('groth_session.id'))
+    session=relationship('GrothSession',back_populates='action_items')
 
 
 

@@ -1,6 +1,6 @@
 from fastapi import Depends, HTTPException, status
 from jose import jwt, JWTError
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 from app.model.role import UserRole,Action_Status,SessionStatus
 from app.database import get_db
@@ -49,18 +49,20 @@ class SessionNoteResponse(SessionNoteBase):
 
 
 class ActionItemBase(BaseModel):
-    title:str
-    status:Optional[Action_Status]=None
+    title: str = Field(alias='titlr')
+    status: Optional[Action_Status] = None
 
 
 class ActionItemCreate(ActionItemBase):
     pass
 
 class ActionItemResponse(ActionItemBase):
-    id : int
-    completed:bool
+    id: int
+    completed: bool
+    
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 class GrowthSessionBase(BaseModel):

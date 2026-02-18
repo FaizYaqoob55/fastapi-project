@@ -3,7 +3,6 @@ from fastapi import APIRouter, Depends, HTTPException, HTTPException, Query,Body
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.model.role import SessionStatus, UserRole
-from app.routes import team
 from app.schemas.dependencies import get_current_user, GrowthSessionResponse, GrowthSessionCreate, GrowthSessionUpdate, SessionNoteResponse, ActionItemResponse
 from app.models import ActionItem, GrothSession, SessionNote, Team, User
 
@@ -57,12 +56,18 @@ def get_growth_sessions(db: Session = Depends(get_db), current_user: User = Depe
         query = query.filter(GrothSession.team_id == team.id)
   
     if status:
-        query = query.filter(GrothSession.status == status)
+        # Validate status against SessionStatus enum
+        try:
+            status_enum = SessionStatus(status)
+            query = query.filter(GrothSession.status == status_enum)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {', '.join([s.value for s in SessionStatus])}")
 
     if session_date:
         query = query.filter(GrothSession.date == session_date)
     return query.all()
-
+    #     raise HTTPException(status_code=400, detail="Invalid status value")
+ 
 
 @router.put("/{session_id}",response_model=GrowthSessionResponse)
 def update_growth_session(session_id: int, data: GrowthSessionUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -115,9 +120,5 @@ def update_growth_session_status(session_id: int, status: str = Body(..., embed=
 
 
 
-
-
-
-
-
+    
 
