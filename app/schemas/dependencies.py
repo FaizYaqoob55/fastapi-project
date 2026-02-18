@@ -2,12 +2,13 @@ from fastapi import Depends, HTTPException, status
 from jose import jwt, JWTError
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
-from app.model.role import UserRole
+from app.model.role import UserRole,Action_Status,SessionStatus
 from app.database import get_db
 from app.models import User
 from app.utils.security import ALGORITHM, SECRET_KEY
 from fastapi.security import OAuth2PasswordBearer
 from typing import Optional
+from datetime import date
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
@@ -32,7 +33,63 @@ class TeamMemberCreate(BaseModel):
     user_id: int
 
 
-class SessionNot
+class SessionNoteBase(BaseModel):
+    content: str
+
+class SessionNoteCreate(SessionNoteBase):
+    pass
+
+class SessionNoteResponse(SessionNoteBase):
+    id:int
+    class Config:
+        from_attributes=True
+
+
+
+
+class ActionItemBase(BaseModel):
+    title:str
+    status:Optional[Action_Status]=None
+
+
+class ActionItemCreate(ActionItemBase):
+    pass
+
+class ActionItemResponse(ActionItemBase):
+    id : int
+    completed:bool
+    class Config:
+        from_attributes = True
+
+
+class GrowthSessionBase(BaseModel):
+    title:str
+    date:date
+
+class GrowthSessionCreate(GrowthSessionBase):
+    team_id:int
+
+class GrowthSessionUpdate(BaseModel):
+    title:Optional[str]=None
+    date:Optional[date]=None
+
+class GrowthSessionResponse(GrowthSessionBase):
+    id:int 
+    status:SessionStatus
+    team_id:int
+
+    notes:list[SessionNoteResponse]=[]
+    action_items:list[ActionItemResponse]=[]
+
+    class Config:
+        from_attributes=True
+
+
+
+
+
+
+
 
 
 class Usercreate(BaseModel):
@@ -46,7 +103,7 @@ class UserResponse(BaseModel):
     email:EmailStr
 
     class Config():
-        for_attributes=True
+        from_attributes=True
 
 class LoginRequest(BaseModel):
     email:EmailStr
