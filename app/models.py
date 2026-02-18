@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Enum
+from sqlalchemy import Column, Integer, String, ForeignKey, Enum,Date,Boolean
 from app.database import Base
 from app.model.role import UserRole
 from sqlalchemy.orm import relationship
+from app.model.role import SessionStatus,Action_Status
 
 
 class User(Base):
@@ -49,3 +50,36 @@ class Project(Base):
     team=relationship('Team',backref='projects')
     
     
+
+
+class GrothSession(Base):
+    __tablename__ = 'groth_session'
+
+    id = Column(Integer,primary_key=True,index=True)
+    title= Column(String,nullable=False)
+    date=Column(Date,nullable=False)
+    status=Column(Enum(SessionStatus),default=SessionStatus.PLANNED)
+    team_id=Column(Integer,ForeignKey('team.id'))
+    notes=relationship('SessionNote',back_populates='session',cascade='all,delete')
+    action_items=relationship('ActionItem',back_populates='session',cascade='all,delete')
+
+
+class SessionNote(Base):
+    __tablename__='session_note'
+    id=Column(Integer,primary_key=True,index=True)
+    content=Column(String,nullable=False)
+    session_id=Column(Integer,ForeignKey('groth_session.id'))
+    session=relationship('GrothSession',back_populates='notes')
+
+
+class ActionItem(Base):
+    __tablename__='action_items'
+    id=Column(Integer,primary_key=True,index=True)
+    titlr=Column(String,nullable=False)
+    completed=Column(Boolean,default=False)
+    status=Column(Enum(Action_Status),default=Action_Status.PENDING)
+    session_id=Column(Integer,ForeignKey('groth_session.id'))
+    session=relationship('GrothSession',back_populates='action_items')
+
+
+

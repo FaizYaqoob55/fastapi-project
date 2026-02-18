@@ -32,6 +32,9 @@ class TeamMemberCreate(BaseModel):
     user_id: int
 
 
+class SessionNot
+
+
 class Usercreate(BaseModel):
     name:str
     password:str
