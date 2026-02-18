@@ -7,7 +7,7 @@ from app.utils.security import hash_password, verify_password, create_access_tok
 import uvicorn
 import jwt
 from app import models, schemas
-from app.routes import admin, project
+from app.routes import admin, growth_session, project
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, HTTPBearer, HTTPAuthorizationCredentials
 from app.model.role import UserRole
 from app.routes import team
@@ -23,6 +23,7 @@ Base.metadata.create_all(bind=engine)
 app.include_router(admin.router)
 app.include_router(team.router)
 app.include_router(project.router)
+app.include_router(growth_session.router)
 
 
 # Security schemes
