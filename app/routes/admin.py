@@ -18,11 +18,3 @@ def admin_dashboard(
         'role':current_user.role
      }
 
-# @router.get('/me')
-# def my_profile(current_user = Depends(get_current_user)):
-#     return {
-#         'id': current_user.id,
-#         'email': current_user.email,
-#         'name': current_user.name,
-#         'role': current_user.role
-#     }

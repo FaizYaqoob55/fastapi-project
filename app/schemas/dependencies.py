@@ -40,6 +40,9 @@ class SessionNoteBase(BaseModel):
 class SessionNoteCreate(SessionNoteBase):
     pass
 
+class SessionNoteUpdate(BaseModel):
+    content: Optional[str] = None
+
 class SessionNoteResponse(SessionNoteBase):
     id:int
     class Config:
@@ -55,6 +58,10 @@ class ActionItemBase(BaseModel):
 
 class ActionItemCreate(ActionItemBase):
     pass
+
+class ActionItemUpdate(BaseModel):
+    title: Optional[str] = Field(None, alias='titlr')
+    status: Optional[Action_Status] = None
 
 class ActionItemResponse(ActionItemBase):
     id: int
@@ -86,13 +93,6 @@ class GrowthSessionResponse(GrowthSessionBase):
 
     class Config:
         from_attributes=True
-
-
-
-
-
-
-
 
 
 class Usercreate(BaseModel):
@@ -145,5 +145,4 @@ def requires_role(required_role: UserRole):
             )
         return current_user
     return role_checker
-
 

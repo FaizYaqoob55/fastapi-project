@@ -81,3 +81,15 @@ def remove_member(team_id: int, member: TeamMemberCreate, db: Session = Depends(
     db.commit()
     return {"message": "Member removed successfully"}
 
+
+
+@router.delete("/{team_id}")
+def delete_team(team_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    team = db.query(Team).filter(Team.id == team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    if team.lead_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this team")
+    db.delete(team)
+    db.commit()
+    return {"message": "Team deleted successfully"}
