@@ -22,3 +22,8 @@ class Action_Status(str,Enum):
     pending ='pending'
     completed='completed'
     
+
+class NotificationType(str,Enum):
+    sessiion_reminder = 'session-reminder'
+    action_item_due = 'action_item-due'
+    mention = 'mention'

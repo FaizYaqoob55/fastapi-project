@@ -1,8 +1,9 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Enum,Date,Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, Enum,Date,Boolean,DateTime
 from app.database import Base
 from app.model.role import UserRole
 from sqlalchemy.orm import relationship
 from app.model.role import SessionStatus, Action_Status, ProjectStatus
+from sqlalchemy.sql import func
 
 
 class User(Base):
@@ -56,6 +57,9 @@ class GrowthSession(Base):
     title= Column(String,nullable=False)
     date=Column(Date,nullable=False)
     status=Column(Enum(SessionStatus, native_enum=False),default=SessionStatus.planned)
+    calendar_event_id=Column(String,nullable=True)
+    meeting_link=Column(String,nullable=True)
+    location=Column(String,nullable=True)
     team_id=Column(Integer,ForeignKey('team.id', ondelete='CASCADE'))
     notes=relationship('SessionNote',back_populates='session',cascade='all,delete')
     action_items=relationship('ActionItem',back_populates='session',cascade='all,delete')
@@ -79,4 +83,13 @@ class ActionItem(Base):
     session=relationship('GrowthSession',back_populates='action_items')
 
 
+
+class Notification(Base):
+    __tablename__ = 'notifications'
+    id =Column(Integer,primary_key=True,index=True)
+    user_id=Column(Integer,ForeignKey('userr.id'),nullable=False)
+    type =Column(String,nullable=False)
+    message=Column(String,nullable=False)
+    is_read = Column(Boolean,default=False)
+    created_at=Column(DateTime(timezone=True),server_default=func.now())
 

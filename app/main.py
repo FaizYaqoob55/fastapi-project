@@ -9,11 +9,13 @@ from app import models
 from app.routes import action_item, admin, growth_session, project, session_note, team
 from fastapi.security import OAuth2PasswordRequestForm
 from app.model.role import UserRole
+from app.utils import notifications
 
 app = FastAPI(title="My FastAPI Application")
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
+
 
 # Include routers
 app.include_router(admin.router)
@@ -22,7 +24,13 @@ app.include_router(project.router)
 app.include_router(growth_session.router)
 app.include_router(session_note.router)
 app.include_router(action_item.router)
+app.include_router(notifications.router)
 
+
+import collections
+if not hasattr(collections, 'Mapping'):
+    import collections.abc
+    collections.Mapping = collections.abc.Mapping
 @app.post('/user_register')
 def register(user: Usercreate, db: Session = Depends(get_db)):
     existing_user = db.query(User).filter(User.email == user.email).first()

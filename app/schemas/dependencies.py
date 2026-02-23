@@ -2,13 +2,13 @@ from fastapi import Depends, HTTPException, status
 from jose import jwt, JWTError
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
-from app.model.role import UserRole,Action_Status,SessionStatus
+from app.model.role import UserRole,Action_Status,SessionStatus,NotificationType
 from app.database import get_db
 from app.models import User
 from app.utils.security import ALGORITHM, SECRET_KEY
 from fastapi.security import OAuth2PasswordBearer
 from typing import Optional
-from datetime import date
+from datetime import date,datetime
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
@@ -60,7 +60,8 @@ class ActionItemCreate(ActionItemBase):
     pass
 
 class ActionItemUpdate(BaseModel):
-    title: Optional[str] = Field(None, alias='titlr')
+    title: Optional[str] = Field(None, alias='title')
+    completed: Optional[bool] = None
     status: Optional[Action_Status] = None
 
 class ActionItemResponse(ActionItemBase):
@@ -87,9 +88,10 @@ class GrowthSessionResponse(GrowthSessionBase):
     id:int 
     status:SessionStatus
     team_id:int
-
+    calendar_event_id:str = None
     notes:list[SessionNoteResponse]=[]
     action_items:list[ActionItemResponse]=[]
+    
 
     class Config:
         from_attributes=True
@@ -111,6 +113,17 @@ class UserResponse(BaseModel):
 class LoginRequest(BaseModel):
     email:EmailStr
     password:str
+
+
+class NotificationResponse(BaseModel):
+    id :int
+    type:NotificationType
+    message:str
+    is_read:bool
+    created_at:datetime
+    class Config:
+        from_attributes =True
+
 
 
 def get_current_user(
