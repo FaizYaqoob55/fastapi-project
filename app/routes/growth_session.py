@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Body, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.model.role import SessionStatus, UserRole
+from app.model.role import NotificationType, SessionStatus, UserRole
 from app.utils.calendar_services import create_calendar_event
 from app.schemas.dependencies import (
     get_current_user, 
@@ -13,6 +13,8 @@ from app.schemas.dependencies import (
 from app.models import GrowthSession, Team, User
 from app.utils.ics_generator import generate_ics_file
 from fastapi.responses import Response
+
+from app.utils.notifications import create_notification, dispatch_notification_email
 
 router = APIRouter(
     prefix="/growth-sessions",
@@ -38,6 +40,21 @@ def create_growth_session(data: GrowthSessionCreate, db: Session = Depends(get_d
         date=data.date,
         team_id=data.team_id,
         status=SessionStatus.planned
+    )
+    notification=create_notification(
+        db=db,
+        user_id=current_user.id,
+        type=NotificationType.session_reminder,
+        message=f"Your growth session \"{data.title}\" is scheduled"
+    )
+    dispatch_notification_email(
+        background_task=Depends(),
+        user=current_user,
+        notification_type=NotificationType.session_reminder,
+        payload={
+            'session_title':data.title,
+            'session_date':data.date
+        }
     )
     calendar_event_id = create_calendar_event(session)
     session.calendar_event_id = calendar_event_id

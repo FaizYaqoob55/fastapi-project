@@ -88,7 +88,9 @@ class GrowthSessionResponse(GrowthSessionBase):
     id:int 
     status:SessionStatus
     team_id:int
-    calendar_event_id:str = None
+    calendar_event_id:Optional[str] = None
+    meeting_link:Optional[str] = None
+    location:Optional[str] = None
     notes:list[SessionNoteResponse]=[]
     action_items:list[ActionItemResponse]=[]
     
@@ -123,6 +125,12 @@ class NotificationResponse(BaseModel):
     created_at:datetime
     class Config:
         from_attributes =True
+
+
+class UserPrefrencesUpdate(BaseModel):
+    email_session_reminder:Optional[bool]
+    email_action_item_due:Optional[bool]
+    email_mentions:Optional[bool]
 
 
 

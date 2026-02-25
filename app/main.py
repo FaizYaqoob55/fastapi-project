@@ -6,10 +6,11 @@ from app.models import User, Team, TeamMember, Project
 from app.utils.security import hash_password, verify_password, create_access_token, refresh_access_token
 import uvicorn
 from app import models
-from app.routes import action_item, admin, growth_session, project, session_note, team
+from app.routes import action_item, admin, growth_session, project, session_note, team,users
 from fastapi.security import OAuth2PasswordRequestForm
 from app.model.role import UserRole
 from app.utils import notifications
+from app.routes.dashboard import router as dashboard_router
 
 app = FastAPI(title="My FastAPI Application")
 
@@ -19,12 +20,16 @@ Base.metadata.create_all(bind=engine)
 
 # Include routers
 app.include_router(admin.router)
+app.include_router(dashboard_router)
 app.include_router(team.router)
 app.include_router(project.router)
 app.include_router(growth_session.router)
 app.include_router(session_note.router)
 app.include_router(action_item.router)
 app.include_router(notifications.router)
+app.include_router(users.router)
+
+
 
 
 import collections

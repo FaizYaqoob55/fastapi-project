@@ -1,3 +1,4 @@
+import sqlalchemy as sa
 from sqlalchemy import Column, Integer, String, ForeignKey, Enum,Date,Boolean,DateTime
 from app.database import Base
 from app.model.role import UserRole
@@ -13,6 +14,21 @@ class User(Base):
     name = Column(String(100), nullable=False)
     email = Column(String(100), unique=True, index=True, nullable=False)
     password = Column(String(100), nullable=False)
+    email_notification_enabled = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=sa.true(),
+    )
+    email_session_reminder = Column(
+        Boolean,
+        default=True,)
+    email_action_item_due = Column(
+        Boolean,
+        default=True,)
+    email_mention = Column(
+        Boolean,
+        default=True,)
     role = Column(Enum(UserRole, native_enum=False), default=UserRole.viewer, nullable=False)
     team = relationship('Team', secondary='team_member', back_populates='members')
 
