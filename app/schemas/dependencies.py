@@ -2,7 +2,7 @@ from fastapi import Depends, HTTPException, status
 from jose import jwt, JWTError
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
-from app.model.role import UserRole,Action_Status,SessionStatus,NotificationType
+from app.model.role import UserRole,Action_Status,SessionStatus,NotificationType,DebtPriority,DebtStatus
 from app.database import get_db
 from app.models import User
 from app.utils.security import ALGORITHM, SECRET_KEY
@@ -82,7 +82,7 @@ class GrowthSessionCreate(GrowthSessionBase):
 
 class GrowthSessionUpdate(BaseModel):
     title:Optional[str]=None
-    date:Optional[date]=None
+    date:date
 
 class GrowthSessionResponse(GrowthSessionBase):
     id:int 
@@ -131,6 +131,103 @@ class UserPrefrencesUpdate(BaseModel):
     email_session_reminder:Optional[bool]
     email_action_item_due:Optional[bool]
     email_mentions:Optional[bool]
+
+
+
+
+
+class DebtCommentCreate(BaseModel):
+    comment:str
+
+class DebtCommentResponse(BaseModel):
+    id:int
+    user_id:int
+    comment:str
+    created_at:datetime
+    class Config:
+        from_attributes=True
+
+
+class TechnicalDebtCreate(BaseModel):
+    project_id:int
+    owner_id:int
+    title:str
+    description:Optional[str]=None
+    priority:DebtPriority=DebtPriority.medium
+    severity:Optional[int]=None
+    estimated_effort:Optional[int]=None
+    due_date:Optional[date]=None
+
+
+class TechnicalDebtUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    priority: Optional[DebtPriority] = None
+    status: Optional[DebtStatus] = None
+    severity: Optional[int] = None
+    estimated_effort: Optional[int] = None
+    actual_effort: Optional[int] = None
+    due_date: Optional[date] = None
+
+
+class TechnicalResponse(BaseModel):
+    id:int
+    project_id:int
+    owner_id:int
+    title:str
+    description:Optional[str]
+    priority:DebtPriority
+    status:DebtStatus
+    severity:Optional[int]
+    estimated_effort:Optional[int]
+    actual_effort:Optional[int]
+    due_date:Optional[date]
+    created_at:datetime
+    comments:list[DebtCommentResponse]=[]
+    class Config:
+        from_attributes=True
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

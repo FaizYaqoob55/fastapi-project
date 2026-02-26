@@ -1,7 +1,8 @@
 import sqlalchemy as sa
-from sqlalchemy import Column, Integer, String, ForeignKey, Enum,Date,Boolean,DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, Enum,Date,Boolean,DateTime,Text
+from datetime import datetime
 from app.database import Base
-from app.model.role import UserRole
+from app.model.role import UserRole,DebtPriority,DebtStatus
 from sqlalchemy.orm import relationship
 from app.model.role import SessionStatus, Action_Status, ProjectStatus
 from sqlalchemy.sql import func
@@ -108,4 +109,34 @@ class Notification(Base):
     message=Column(String,nullable=False)
     is_read = Column(Boolean,default=False)
     created_at=Column(DateTime(timezone=True),server_default=func.now())
+
+
+
+
+class TechnicalDebt(Base):
+    __tablename__="technical_debts"
+
+    id=Column(Integer,primary_key=True,index=True)
+    project_id=Column(Integer,ForeignKey("projects.id"),nullable=False)
+    owner_id=Column(Integer,ForeignKey("userr.id"),nullable=False)
+    title=Column(String(255),nullable=False)
+    description=Column(Text,nullable=True)
+    priority=Column(Enum(DebtPriority),default=DebtPriority.medium)
+    status=Column(Enum(DebtStatus),default=DebtStatus.open)
+    severity=Column(Integer,nullable=True)
+    estimated_effort=Column(Integer,nullable=True)
+    actual_effort=Column(Integer,nullable=True)
+    due_date=Column(Date,nullable=True)
+    created_at=Column(DateTime,default=datetime.utcnow)
+    comments=relationship("DebtComment",backref="technical_debt",cascade="all,delete-orphan")
+
+class DebtComment(Base):
+    __tablename__="debt_comments"
+    id=Column(Integer,primary_key=True,index=True)
+    debt_id=Column(Integer,ForeignKey("technical_debts.id"),nullable=False)
+    user_id=Column(Integer,ForeignKey("userr.id"),nullable=False)
+    comment=Column(Text,nullable=False)
+    created_at=Column(DateTime,default=datetime.utcnow)
+
+
 
