@@ -187,7 +187,8 @@ class TechnicalResponse(BaseModel):
     class Config:
         from_attributes=True
 
-
+class PriorityUpdate(BaseModel):
+    priority: DebtPriority
 
 
 

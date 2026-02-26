@@ -9,9 +9,11 @@ from app.schemas.dependencies import (
     TechnicalDebtCreate,
     TechnicalDebtUpdate,
     DebtCommentCreate,
-    DebtCommentResponse
+    DebtCommentResponse,
+    PriorityUpdate
 )
 from app.models import TechnicalDebt, User, DebtComment
+from app.model.role import DebtPriority
 
 
 router = APIRouter(
@@ -200,3 +202,20 @@ def delete_debt_comment(
     db.delete(comment)
     db.commit()
     return {"message": "Comment deleted"}
+
+
+
+
+@router.patch("/{debt_id}/priority")
+def update_debt_priority(debt_id:int,data:PriorityUpdate,
+                         db: Session = Depends(get_db)
+                         ):
+    debt=db.query(TechnicalDebt).filter(TechnicalDebt.id==debt_id).first()
+    if not debt:
+        raise HTTPException(status_code=404,detail="Debt not  pound")
+    debt.priority=data.priority
+    db.commit()
+    return {"message":"Debt priority updated"}
+
+
+
