@@ -138,5 +138,13 @@ class DebtComment(Base):
     comment=Column(Text,nullable=False)
     created_at=Column(DateTime,default=datetime.utcnow)
 
+class DebtStatusHistory(Base):
+    __tablename__="debt_status_history"
+    id=Column(Integer,primary_key=True,index=True)
+    technical_debt_id=Column(Integer,ForeignKey("technical_debts.id"),nullable=False)
+    old_status=Column(String)
+    new_status=Column(String)
+    changed_by=Column(Integer,ForeignKey("userr.id"),nullable=False)
+    changed_at=Column(DateTime,default=datetime.utcnow)
 
 

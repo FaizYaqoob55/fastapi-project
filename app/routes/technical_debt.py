@@ -12,8 +12,9 @@ from app.schemas.dependencies import (
     DebtCommentResponse,
     PriorityUpdate
 )
-from app.models import TechnicalDebt, User, DebtComment
-from app.model.role import DebtPriority
+from app.models import TechnicalDebt, User, DebtComment,DebtStatusHistory
+from app.model.role import DebtPriority,DebtStatus,UserRole
+from fastapi import Body
 
 
 router = APIRouter(
@@ -217,5 +218,34 @@ def update_debt_priority(debt_id:int,data:PriorityUpdate,
     db.commit()
     return {"message":"Debt priority updated"}
 
+@router.patch("/{debt_id}/status")
+def update_debt_status(debt_id:int,
+                       status:DebtStatus=Body(...,embed=True),
+                       db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+        debt=db.query(TechnicalDebt).filter(TechnicalDebt.id==debt_id).first()
+        if not debt:
+            raise HTTPException(status_code=404,detail="technical debt not found")
+        if current_user.role != UserRole.admin and debt.owner_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to update this technical debt")
+        
+        statushistory=DebtStatusHistory(
+            technical_debt_id=debt.id,
+            old_status=debt.status,
+            new_status=status,
+            changed_by=current_user.id
+        )
 
+        debt.status=status
+        db.add(statushistory)
+        db.commit()
+        return {"message":"Debt status updated"}
+    
+
+
+
+@router.get("/{debt_id}/history")
+def gwt_status_history(debt_id:int,db:Session=Depends(get_db)):
+    return db.query(DebtStatusHistory).filter(
+        DebtStatusHistory.technical_debt_id==debt_id
+    ).order_by(DebtStatusHistory.changed_at.desc()).all
 
