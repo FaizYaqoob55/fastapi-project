@@ -38,6 +38,8 @@ def create_growth_session(data: GrowthSessionCreate, db: Session = Depends(get_d
     session = GrowthSession(
         title=data.title,
         date=data.date,
+        start_time=data.start_time,
+        end_time=data.end_time,
         team_id=data.team_id,
         status=SessionStatus.planned
     )
@@ -118,6 +120,7 @@ def get_growth_session(session_id: int, db: Session = Depends(get_db), current_u
 
 @router.put("/{session_id}", response_model=GrowthSessionResponse)
 def update_growth_session(session_id: int, data: GrowthSessionUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # allow updating of time fields as well
     session = db.query(GrowthSession).filter(GrowthSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Growth session not found")

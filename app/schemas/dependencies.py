@@ -76,6 +76,8 @@ class ActionItemResponse(ActionItemBase):
 class GrowthSessionBase(BaseModel):
     title:str
     date:date
+    start_time:datetime
+    end_time:Optional[datetime] = None
 
 class GrowthSessionCreate(GrowthSessionBase):
     team_id:int
@@ -83,6 +85,8 @@ class GrowthSessionCreate(GrowthSessionBase):
 class GrowthSessionUpdate(BaseModel):
     title:Optional[str]=None
     date:date
+    start_time:Optional[datetime] = None
+    end_time:Optional[datetime] = None
 
 class GrowthSessionResponse(GrowthSessionBase):
     id:int 

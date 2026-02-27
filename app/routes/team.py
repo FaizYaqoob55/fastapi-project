@@ -5,6 +5,7 @@ from app.models import Team, TeamMember, User
 from app.schemas.dependencies import TeamCreate, TeamResponse, TeamUpdate, TeamMemberCreate
 from app.schemas.dependencies import get_current_user, requires_role
 from app.models import User
+from app.model.role import UserRole
 
 router = APIRouter(
     prefix="/teams",
@@ -18,6 +19,9 @@ def create_team(team: TeamCreate, db: Session = Depends(get_db), current_user: U
     existing_team = db.query(Team).filter(Team.name == team.name).first()
     if existing_team:
         raise HTTPException(status_code=400, detail="Team name already exists")
+    if current_user.role not in [UserRole.admin, UserRole.lead]:
+        raise HTTPException(status_code=403, detail="Not authorized to create teams")
+
     db.add(new_team)
     db.commit()
     db.refresh(new_team)

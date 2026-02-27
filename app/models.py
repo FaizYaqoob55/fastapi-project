@@ -73,6 +73,8 @@ class GrowthSession(Base):
     id = Column(Integer,primary_key=True,index=True)
     title= Column(String,nullable=False)
     date=Column(Date,nullable=False)
+    start_time=Column(DateTime,nullable=False)
+    end_time=Column(DateTime,nullable=False)
     status=Column(Enum(SessionStatus, native_enum=False),default=SessionStatus.planned)
     calendar_event_id=Column(String,nullable=True)
     meeting_link=Column(String,nullable=True)

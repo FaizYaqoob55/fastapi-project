@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import asc, desc
 from app.database import get_db
+from app.routes import project
 from app.schemas.dependencies import (
     get_current_user, 
     TechnicalResponse,
@@ -12,7 +13,7 @@ from app.schemas.dependencies import (
     DebtCommentResponse,
     PriorityUpdate
 )
-from app.models import TechnicalDebt, User, DebtComment,DebtStatusHistory
+from app.models import Project, TechnicalDebt, User, DebtComment,DebtStatusHistory
 from app.model.role import DebtPriority,DebtStatus,UserRole
 from fastapi import Body
 
@@ -31,9 +32,20 @@ def create_technical_debt(
     db:Session=Depends(get_db),
     current_user=Depends(get_current_user)
 ):
+    if owner_id := data.owner_id:
+        owner = db.query(User).filter(User.id == owner_id).first()
+        if not owner:
+            raise HTTPException(status_code=404, detail="Owner not found")
+        if current_user.role != UserRole.admin and owner_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to assign technical debt to this user")
+    if not (project := db.query(Project).filter(Project.id == data.project_id).first()):
+        raise HTTPException(status_code=404, detail="Project not found")
+    # ensure owner_id is valid; default to current user
+
+    owner_id = data.owner_id or current_user.id
     debt=TechnicalDebt(
         project_id=data.project_id,
-        owner_id=data.owner_id,
+        owner_id=owner_id,
         title=data.title,
         description=data.description,
         priority=data.priority,
@@ -209,11 +221,15 @@ def delete_debt_comment(
 
 @router.patch("/{debt_id}/priority")
 def update_debt_priority(debt_id:int,data:PriorityUpdate,
-                         db: Session = Depends(get_db)
+                         db: Session = Depends(get_db),
+                         current_user: User = Depends(get_current_user)
                          ):
     debt=db.query(TechnicalDebt).filter(TechnicalDebt.id==debt_id).first()
     if not debt:
-        raise HTTPException(status_code=404,detail="Debt not  pound")
+        raise HTTPException(status_code=404,detail="Debt not found")
+    if current_user.role != UserRole.admin and debt.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to update this technical debt")
+    
     debt.priority=data.priority
     db.commit()
     return {"message":"Debt priority updated"}
@@ -244,8 +260,30 @@ def update_debt_status(debt_id:int,
 
 
 @router.get("/{debt_id}/history")
-def gwt_status_history(debt_id:int,db:Session=Depends(get_db)):
+def get_status_history(debt_id:int,db:Session=Depends(get_db)):
+    if not db.query(TechnicalDebt).filter(TechnicalDebt.id==debt_id).first():
+        raise HTTPException(status_code=404,detail="Technical Debt not found")
     return db.query(DebtStatusHistory).filter(
         DebtStatusHistory.technical_debt_id==debt_id
-    ).order_by(DebtStatusHistory.changed_at.desc()).all
+    ).order_by(DebtStatusHistory.changed_at.desc()).all()
 
+
+
+
+
+@router.patch("/{debt_id}/assign")
+def assign_technical_debt_owner(debt_id:int,
+                                owner_id:int=Body(...,embed=True),
+                                db:Session=Depends(get_db),
+                                current_user:User=Depends(get_current_user)):
+    debt=db.query(TechnicalDebt).filter(TechnicalDebt.id==debt_id).first()
+    if not debt:
+        raise HTTPException(status_code=404,detail="Technical Debt not found")
+    if current_user.role != UserRole.admin:
+        raise HTTPException(status_code=403,detail="Not authorized to assign technical debt")
+    owner=db.query(User).filter(User.id==owner_id).first()
+    if not owner:
+        raise HTTPException(status_code=404,detail="Owner not found")
+    debt.owner_id=owner_id
+    db.commit()
+    return {"message":f"Technical debt assigned to {owner.email}"}

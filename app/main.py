@@ -6,7 +6,7 @@ from app.models import User, Team, TeamMember, Project
 from app.utils.security import hash_password, verify_password, create_access_token, refresh_access_token
 import uvicorn
 from app import models
-from app.routes import action_item, admin, growth_session, project, session_note, team,users,technical_debt
+from app.routes import action_item, admin, growth_session, mention, project, session_note, team,users,technical_debt
 from fastapi.security import OAuth2PasswordRequestForm
 from app.model.role import UserRole
 from app.utils import notifications
@@ -29,6 +29,7 @@ app.include_router(action_item.router)
 app.include_router(notifications.router)
 app.include_router(users.router)
 app.include_router(technical_debt.router)
+app.include_router(mention.router)
 
 
 
