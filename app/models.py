@@ -4,7 +4,7 @@ from datetime import datetime
 from app.database import Base
 from app.model.role import UserRole,DebtPriority,DebtStatus
 from sqlalchemy.orm import relationship
-from app.model.role import SessionStatus, Action_Status, ProjectStatus
+from app.model.role import SessionStatus, Action_Status, ProjectStatus, DeprecationType, TimeLineStage
 from sqlalchemy.sql import func
 
 
@@ -150,3 +150,33 @@ class DebtStatusHistory(Base):
     changed_at=Column(DateTime,default=datetime.utcnow)
 
 
+class Deprecation(Base):
+    __tablename__="deprecations"
+    id=Column(Integer,primary_key=True,index=True)
+    project_id=Column(Integer,ForeignKey("projects.id"),nullable=False)
+    item_name=Column(String(255),nullable=False)
+    type=Column(Enum(DeprecationType, native_enum=False), nullable=False)
+    current_version=Column(String(50),nullable=False)
+    deprecated_in=Column(String(50),nullable=False)
+    removal_planned_for=Column(String(50),nullable=False)
+    replacement=Column(String(255),nullable=True)
+    impact_level=Column(Text,nullable=True)
+    migration_notes=Column(Text,nullable=True)
+    status=Column(String(50),nullable=True)
+    created_at=Column(DateTime,default=func.now())
+    timeline=relationship("DeprecationTimeline",back_populates="deprecation",cascade="all,delete")
+
+
+class DeprecationTimeline(Base):
+    __tablename__="deprecation_timeline"
+    id=Column(Integer,primary_key=True,index=True)
+    deprecation_id=Column(Integer,ForeignKey("deprecations.id", ondelete="CASCADE"),nullable=False)
+    stage=Column(Enum(TimeLineStage, native_enum=False),nullable=False)
+    planned_date=Column(Date,nullable=False)
+    notes=Column(Text,nullable=True)
+    created_at=Column(DateTime,default=func.now())
+    deprecation=relationship("Deprecation",back_populates="timeline")
+
+
+
+ 

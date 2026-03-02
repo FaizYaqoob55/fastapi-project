@@ -3,7 +3,7 @@ from fastapi import Depends, HTTPException, status
 from jose import jwt, JWTError
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
-from app.model.role import UserRole,Action_Status,SessionStatus,NotificationType,DebtPriority,DebtStatus
+from app.model.role import UserRole,Action_Status,SessionStatus,NotificationType,DebtPriority,DebtStatus,DeprecationType,TimeLineStage
 from app.database import get_db
 from app.models import User
 from app.utils.security import ALGORITHM, SECRET_KEY
@@ -223,11 +223,53 @@ class TechnicalDebtDashboardResponse(BaseModel):
 
 
 
+class deprecationsBase(BaseModel):
+    project_id:int
+    item_name:str
+    type:DeprecationType
+    current_version:Optional[str]=None
+    deprecated_in:Optional[str]=None
+    removal_planned_for:Optional[str]=None
+    replacement:Optional[str]=None
+    impact_level:Optional[str]=None
+    migration_notes:Optional[str]=None
+    status:Optional[str]=None
+
+class deprecationsCreate(deprecationsBase):
+    pass
+
+class deprecationsUpdate(BaseModel):
+    project_id:Optional[int]=None
+    type:Optional[DeprecationType]=None
+    current_version:Optional[str]=None
+    deprecated_in:Optional[str]=None
+    removal_planned_for:Optional[str]=None
+    replacement:Optional[str]=None
+    impact_level:Optional[str]=None
+    migration_notes:Optional[str]=None
+
+class deprecationsResponse(deprecationsBase):
+    id:int
+    created_at:datetime
+    class Config:
+        from_attributes=True
 
 
 
+class DeprecationTimelineBase(BaseModel):
+    stage:TimeLineStage
+    notes:Optional[str]=None
+
+class DeprecationTimelineCreate(DeprecationTimelineBase):
+    pass
 
 
+
+class DeprecationTimelineResponse(DeprecationTimelineBase):
+    id:int
+    created_at:datetime
+    class Config:
+        from_attributes=True
 
 
 
