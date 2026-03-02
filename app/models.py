@@ -150,3 +150,25 @@ class DebtStatusHistory(Base):
     changed_at=Column(DateTime,default=datetime.utcnow)
 
 
+class Deprecation(Base):
+    __tablename__="deprecations"
+    id=Column(Integer,primary_key=True,index=True)
+    project_id=Column(Integer,ForeignKey("project.id"),nullable=False)
+    item_name=Column(String(255),nullable=False)
+    type=Column(Enum(DeprecationType),default=DeprecationType.api)
+    currebt_version=column(String(50),nullable=False)
+    deprecated_in=column(String(50),nullable=False)
+    removal_planned_for=Column(String(50),nullable=False)
+    replacement=Column(String(255),nullable=True)
+    impact_level=Column(Text,nullable=True)
+    timeline=relationship("DeprecationTimeline",back_populates="deprecation",cascade="all,delete")
+
+
+class DeprecationTimeline(Base):
+    __tablename__="deprecation_timeline"
+    id=Column(Integer,primary_key=True,index=True)
+    deprecation_id=Column(Integer,ForeignKey("deprecations.id"),ondelete="CASCADE",nullable=False)
+    stage=Column(String,nullable=False)
+    planned_date=Column(Date,nullable=False)
+    notes=Column(Text,nullable=True)
+    deprecation=relationship("Deprecation",back_populates="timeline")
