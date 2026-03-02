@@ -45,6 +45,12 @@ class DebtStatus(str,Enum):
     wont_fix="wont_fix"
 
 
+class DeprecationType(str,Enum):
+    api="api"
+    feature="feature"
+    library="library"
+    database="database"
+    tool="tool"
 
 
 

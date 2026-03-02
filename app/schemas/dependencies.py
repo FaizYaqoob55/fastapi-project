@@ -1,3 +1,4 @@
+from arrow import now
 from fastapi import Depends, HTTPException, status
 from jose import jwt, JWTError
 from pydantic import BaseModel, EmailStr, Field
@@ -76,11 +77,12 @@ class ActionItemResponse(ActionItemBase):
 class GrowthSessionBase(BaseModel):
     title:str
     date:date
-    start_time:datetime
-    end_time:Optional[datetime] = None
+    start_time:datetime = now().strftime("%Y-%m-%d %H:%M:%S")
+    end_time:datetime = now().strftime("%Y-%m-%d %H:%M:%S")
 
 class GrowthSessionCreate(GrowthSessionBase):
     team_id:int
+    
 
 class GrowthSessionUpdate(BaseModel):
     title:Optional[str]=None
@@ -196,7 +198,24 @@ class PriorityUpdate(BaseModel):
 
 
 
+class ProjectDebtCount(BaseModel):
+    project_name: str
+    debt_count: int
 
+class MonthlyTrendItem(BaseModel):
+    month: str
+    debt_count: int
+
+class TechnicalDebtDashboardResponse(BaseModel):
+    total_debts: int
+    priority_breakdown: dict[str, int]
+    by_status: dict[str, int]
+    project_breakdown: list[ProjectDebtCount]
+    monthly_trend: list[MonthlyTrendItem]
+    again_count: int
+
+    class Config:
+        from_attributes = True
 
 
 
