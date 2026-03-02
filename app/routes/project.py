@@ -102,6 +102,8 @@ def delete_project(project_id: int, db: Session = Depends(get_db), current_user:
         raise HTTPException(status_code=404, detail="Project not found")
     
     team = db.query(Team).filter(Team.id == project.team_id).first()
+    if team is None:
+        raise HTTPException(status_code=404, detail="Team not found")
     if team.lead_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to delete this project")
     
