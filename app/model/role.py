@@ -53,4 +53,7 @@ class DeprecationType(str,Enum):
     tool="tool"
 
 
-
+class TimeLineStage(str,Enum):
+    announced="announced"
+    warning_added="warning_added"
+    removed="removed"
