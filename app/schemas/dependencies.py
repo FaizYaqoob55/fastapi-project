@@ -231,6 +231,8 @@ class deprecationsBase(BaseModel):
     deprecated_in:Optional[str]=None
     removal_planned_for:Optional[str]=None
     replacement:Optional[str]=None
+    affected_systems:Optional[str]=None
+    affected_users_count:Optional[int]=0
     impact_level:Optional[str]=None
     migration_notes:Optional[str]=None
     status:Optional[str]=None
@@ -246,11 +248,14 @@ class deprecationsUpdate(BaseModel):
     removal_planned_for:Optional[str]=None
     replacement:Optional[str]=None
     impact_level:Optional[str]=None
+    affected_systems:Optional[str]=None
+    affected_users_count:Optional[int]=None
     migration_notes:Optional[str]=None
 
 class deprecationsResponse(deprecationsBase):
     id:int
     created_at:datetime
+    timeline:list[DeprecationTimelineResponse]=[]
     class Config:
         from_attributes=True
 
@@ -261,13 +266,15 @@ class DeprecationTimelineBase(BaseModel):
     notes:Optional[str]=None
 
 class DeprecationTimelineCreate(DeprecationTimelineBase):
-    pass
+    planned_date:date
+    pass 
 
 
 
 class DeprecationTimelineResponse(DeprecationTimelineBase):
     id:int
     created_at:datetime
+    planned_date:date
     class Config:
         from_attributes=True
 
@@ -275,7 +282,13 @@ class DeprecationTimelineResponse(DeprecationTimelineBase):
 
 
 
-
+class ImpactReport(BaseModel):
+    item_name:str
+    impact_level:str
+    affected_system:str
+    affected_users_count:int
+    upcoming_milestones:list[DeprecationTimelineResponse]
+    linked_debt_count:int
 
 
 

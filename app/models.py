@@ -131,6 +131,9 @@ class TechnicalDebt(Base):
     due_date=Column(Date,nullable=True)
     created_at=Column(DateTime,default=datetime.utcnow)
     comments=relationship("DebtComment",backref="technical_debt",cascade="all,delete-orphan")
+    deprecation=relationship("Deprecation",secondary=deprecation_debt_link,back_populates="technical_debts")
+
+
 
 class DebtComment(Base):
     __tablename__="debt_comments"
@@ -150,6 +153,13 @@ class DebtStatusHistory(Base):
     changed_at=Column(DateTime,default=datetime.utcnow)
 
 
+
+deprecation_debt_link=Table("deprecation_debt_link",Base.metadata,
+    Column("deprecation_id",Integer,ForeignKey("deprecations.id")),
+    Column("debt_id",Integer,ForeignKey("technical_debts.id"))
+)
+
+
 class Deprecation(Base):
     __tablename__="deprecations"
     id=Column(Integer,primary_key=True,index=True)
@@ -164,8 +174,11 @@ class Deprecation(Base):
     migration_notes=Column(Text,nullable=True)
     status=Column(String(50),nullable=True)
     created_at=Column(DateTime,default=func.now())
+    affected_system=Column(Text)
+    affected_users_count=Column(Integer,default=0)
+    impact_level=Column(String)
     timeline=relationship("DeprecationTimeline",back_populates="deprecation",cascade="all,delete")
-
+    technical_debt=relationship("TechnicalDebt",secondary=deprecation_debt_link,back_populates="deprecation",cascade="all,delete")
 
 class DeprecationTimeline(Base):
     __tablename__="deprecation_timeline"
