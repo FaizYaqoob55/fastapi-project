@@ -1,5 +1,5 @@
 import sqlalchemy as sa
-from sqlalchemy import Column, Integer, String, ForeignKey, Enum,Date,Boolean,DateTime,Text
+from sqlalchemy import Column, Integer, String, ForeignKey, Enum,Date,Boolean,DateTime,Text, Table
 from datetime import datetime
 from app.database import Base
 from app.model.role import UserRole,DebtPriority,DebtStatus
@@ -115,6 +115,12 @@ class Notification(Base):
 
 
 
+deprecation_debt_link=Table("deprecation_debt_link",Base.metadata,
+    Column("deprecation_id",Integer,ForeignKey("deprecations.id")),
+    Column("debt_id",Integer,ForeignKey("technical_debts.id"))
+)
+
+
 class TechnicalDebt(Base):
     __tablename__="technical_debts"
 
@@ -131,7 +137,7 @@ class TechnicalDebt(Base):
     due_date=Column(Date,nullable=True)
     created_at=Column(DateTime,default=datetime.utcnow)
     comments=relationship("DebtComment",backref="technical_debt",cascade="all,delete-orphan")
-    deprecation=relationship("Deprecation",secondary=deprecation_debt_link,back_populates="technical_debts")
+    deprecations=relationship("Deprecation",secondary=deprecation_debt_link,back_populates="technical_debts")
 
 
 
@@ -154,10 +160,6 @@ class DebtStatusHistory(Base):
 
 
 
-deprecation_debt_link=Table("deprecation_debt_link",Base.metadata,
-    Column("deprecation_id",Integer,ForeignKey("deprecations.id")),
-    Column("debt_id",Integer,ForeignKey("technical_debts.id"))
-)
 
 
 class Deprecation(Base):
@@ -170,7 +172,6 @@ class Deprecation(Base):
     deprecated_in=Column(String(50),nullable=False)
     removal_planned_for=Column(String(50),nullable=False)
     replacement=Column(String(255),nullable=True)
-    impact_level=Column(Text,nullable=True)
     migration_notes=Column(Text,nullable=True)
     status=Column(String(50),nullable=True)
     created_at=Column(DateTime,default=func.now())
@@ -178,7 +179,7 @@ class Deprecation(Base):
     affected_users_count=Column(Integer,default=0)
     impact_level=Column(String)
     timeline=relationship("DeprecationTimeline",back_populates="deprecation",cascade="all,delete")
-    technical_debt=relationship("TechnicalDebt",secondary=deprecation_debt_link,back_populates="deprecation",cascade="all,delete")
+    technical_debts=relationship("TechnicalDebt",secondary=deprecation_debt_link,back_populates="deprecations",cascade="all,delete")
 
 class DeprecationTimeline(Base):
     __tablename__="deprecation_timeline"
@@ -192,4 +193,4 @@ class DeprecationTimeline(Base):
 
 
 
- 
+  

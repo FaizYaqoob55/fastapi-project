@@ -58,3 +58,10 @@ class TimeLineStage(str,Enum):
     warning_added="warning_added"
     last_support_date="last_support_date"
     removed="removed"
+
+
+class MilestoneType(str,Enum):
+    announced="announced"
+    warning_added="warning_added"
+    last_support_date="last_support_date"
+    removed="removed"

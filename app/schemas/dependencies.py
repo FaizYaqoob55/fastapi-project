@@ -223,6 +223,27 @@ class TechnicalDebtDashboardResponse(BaseModel):
 
 
 
+class DeprecationTimelineBase(BaseModel):
+    stage:TimeLineStage
+    notes:Optional[str]=None
+
+class DeprecationTimelineCreate(DeprecationTimelineBase):
+    planned_date:date
+    pass 
+
+
+
+class DeprecationTimelineResponse(DeprecationTimelineBase):
+    id:int
+    created_at:datetime
+    planned_date:date
+    class Config:
+        from_attributes=True
+
+
+
+
+
 class deprecationsBase(BaseModel):
     project_id:int
     item_name:str
@@ -256,25 +277,6 @@ class deprecationsResponse(deprecationsBase):
     id:int
     created_at:datetime
     timeline:list[DeprecationTimelineResponse]=[]
-    class Config:
-        from_attributes=True
-
-
-
-class DeprecationTimelineBase(BaseModel):
-    stage:TimeLineStage
-    notes:Optional[str]=None
-
-class DeprecationTimelineCreate(DeprecationTimelineBase):
-    planned_date:date
-    pass 
-
-
-
-class DeprecationTimelineResponse(DeprecationTimelineBase):
-    id:int
-    created_at:datetime
-    planned_date:date
     class Config:
         from_attributes=True
 

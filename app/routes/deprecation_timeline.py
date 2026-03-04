@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User,Deprecation,DeprecationTimeline
 from app.schemas.dependencies import get_current_user,DeprecationTimelineCreate
+from app.model.role import TimeLineStage
 
 
 router = APIRouter(
@@ -17,7 +18,10 @@ def create_deprecation_timeline(deprecation_id:int, timeline:DeprecationTimeline
     deprecation = db.query(Deprecation).filter(Deprecation.id == deprecation_id).first()
     if not deprecation:
         raise HTTPException(status_code=404,detail="Deprecation not found")
-    timeline = DeprecationTimeline(deprecation_id=deprecation_id,stage=data.stage,planned_date=data.planned_date)
+    timeline = DeprecationTimeline(deprecation_id=deprecation_id,stage=timeline.stage,planned_date=timeline.planned_date)
+    existing_timeline = db.query(DeprecationTimeline).filter(DeprecationTimeline.deprecation_id == deprecation_id,DeprecationTimeline.stage == timeline.stage).first()
+    if existing_timeline:
+        raise HTTPException(status_code=400,detail="Timeline already exists")
 
     db.add(timeline)
     db.commit()
@@ -38,14 +42,17 @@ def update_deprecation_timeline(deprecation_id:int,timeline_id:int,timeline:Depr
     deprecation = db.query(Deprecation).filter(Deprecation.id == deprecation_id).first()
     if not deprecation:
         raise HTTPException(status_code=404,detail="Deprecation not found")
-    timeline = db.query(DeprecationTimeline).filter(DeprecationTimeline.id == timeline_id).first()
-    if not timeline:
+    timeline_obj = db.query(DeprecationTimeline).filter(DeprecationTimeline.id == timeline_id).first()
+    if not timeline_obj:
         raise HTTPException(status_code=404,detail="Timeline not found")
-    timeline.stage = timeline.stage
-    timeline.planned_date = timeline.planned_date
+    if timeline_obj.stage == TimeLineStage.removed:
+        raise HTTPException(status_code=400,detail="Timeline already removed")
+    timeline_obj.stage = timeline.stage
+    timeline_obj.planned_date = timeline.planned_date
+    timeline_obj.notes = timeline.notes
     db.commit()
-    db.refresh(timeline)
-    return timeline
+    db.refresh(timeline_obj)
+    return timeline_obj
 
 @router.delete("/deprecations/{deprecation_id}/timeline/{timeline_id}")
 def delete_deprecation_timeline(deprecation_id:int,timeline_id:int,current_user:User=Depends(get_current_user),db:Session=Depends(get_db)):
