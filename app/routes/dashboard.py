@@ -1,12 +1,13 @@
 import csv
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Response,HTTPException
 from io import StringIO
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import date, timedelta
 from app.database import get_db
 from app.schemas.dependencies import TechnicalDebtDashboardResponse, get_current_user
-from app.models import GrowthSession, Project, Team, TechnicalDebt, User
+from app.models import GrowthSession, Project, Team, TechnicalDebt, User, Deprecation, DeprecationTimeline
+from app.model.role import TimeLineStage
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
@@ -115,4 +116,101 @@ def export_technical_debt_csv(priority: str |None=None ,status: str |None=None, 
     return Response(content=output.getvalue(),
                      media_type="text/csv",
                        headers={"Content-Disposition": "attachment; filename=technical_debts.csv"})
+
+
+
+
+
+@router.get("/deprecations")
+def deprecation_dashboard(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    today = date.today()
+    next_30_days = today + timedelta(days=30)
+
+    upcoming_deprecations = db.query(DeprecationTimeline).filter(
+        DeprecationTimeline.stage == TimeLineStage.removed,
+        DeprecationTimeline.planned_date >= today,
+        DeprecationTimeline.planned_date <= next_30_days
+    ).count()
+
+    overdue_items = db.query(DeprecationTimeline).filter(
+        DeprecationTimeline.stage == TimeLineStage.removed,
+        DeprecationTimeline.planned_date < today
+    ).count()
+
+    low_count = db.query(Deprecation).filter(Deprecation.impact_level == "low").count()
+    medium_count = db.query(Deprecation).filter(Deprecation.impact_level == "medium").count()
+    high_count = db.query(Deprecation).filter(Deprecation.impact_level == "high").count()
+
+    return {
+        "upcoming_removals": upcoming_deprecations,
+        "overdue_items": overdue_items,
+        "impact_breakdown": {
+            "low": low_count,
+            "medium": medium_count,
+            "high": high_count
+        }
+    }
+    
+@router.get("/deprecation/{deprecation_id}/full-view")
+def deprecation_full_view(deprecation_id:int,db:Session=Depends(get_db) ,current_user:User=Depends(get_current_user)):
+    deprecation=db.query(Deprecation).filter(Deprecation.id==deprecation_id).first()
+    if not deprecation:
+        raise HTTPException(status_code=404, detail="Deprecation not found")
+    return {"deprecation full view":{
+        "deprecation_id":deprecation.id,
+        "deprecation item_name":deprecation.item_name,
+        "deprecation current_version":deprecation.current_version,
+        "deprecation impact level":deprecation.impact_level,
+        "deprecation status":deprecation.status,
+        "deprecation removed_planned_for":deprecation.removal_planned_for,
+    },
+    "deprecation timeline":[
+        {
+            "stage":timeline.stage,
+            "planned_date":timeline.planned_date,
+            "notes":timeline.notes,
+            "created_at":timeline.created_at,
+        }
+        for timeline in deprecation.timeline
+    ],
+    "technical debt":[
+        {
+            "id":debt.id,
+            "title":debt.title,
+            "status":debt.status,
+            "project_id":debt.project_id,
+            "due_date":debt.due_date,
+        }
+        for debt in deprecation.technical_debts
+    ]}
+
+
+@router.get("/export")
+def export_deprecation_csv(format:str="csv",db:Session=Depends(get_db),current_user:User=Depends(get_current_user)):
+    if format != "csv":
+        raise HTTPException(status_code=400,detail="Only csv format is supported")
+    output=StringIO()
+    writer=csv.writer(output)
+    writer.writerow(['id','project_id','item_name','current_version','deprecated_in','impact_level','replacement','type','status','removal_planned_for','affected_system','affected_users_count'])
+    deprecations=db.query(Deprecation).all()
+    for dep in deprecations:
+        writer.writerow([
+            dep.id,
+            dep.project_id,
+            dep.item_name,
+            dep.current_version,
+            dep.deprecated_in,
+            dep.impact_level,
+            dep.replacement,
+            dep.type.value if hasattr(dep.type, 'value') else dep.type,
+            dep.status,
+            dep.removal_planned_for,
+            dep.affected_system,
+            dep.affected_users_count
+        ])
+    return Response(content=output.getvalue(),
+    media_type="text/csv",
+    headers={"Content-Disposition": "attachment; filename=deprecations.csv"})
+
+        
 

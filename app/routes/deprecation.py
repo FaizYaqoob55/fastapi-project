@@ -21,9 +21,9 @@ router = APIRouter(
 
 
 def calculate_impact(users_count:int)->str:
-    if users_count>10000:
+    if users_count>5000:
         return "HIGH"
-    elif users_count>1000:
+    elif users_count>500:
         return "MEDIUM"
     else:
         return "LOW"
