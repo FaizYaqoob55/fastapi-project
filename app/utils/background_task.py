@@ -15,8 +15,6 @@ def create_session(
         background_tasks:BackgroundTasks,
         
 ):
-        
-        
         email_body=session_remainder_template(
                 user_name=current_user.name,
                 session_title=session.title,
