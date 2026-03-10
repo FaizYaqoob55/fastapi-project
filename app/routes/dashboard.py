@@ -1,6 +1,10 @@
 import csv
 from fastapi import APIRouter, Depends, Query, Response,HTTPException
-from io import StringIO
+from io import StringIO, BytesIO
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import date, timedelta
@@ -186,15 +190,13 @@ def deprecation_full_view(deprecation_id:int,db:Session=Depends(get_db) ,current
 
 
 @router.get("/export")
-def export_deprecation_csv(format:str="csv",db:Session=Depends(get_db),current_user:User=Depends(get_current_user)):
-    if format != "csv":
-        raise HTTPException(status_code=400,detail="Only csv format is supported")
-    output=StringIO()
-    writer=csv.writer(output)
-    writer.writerow(['id','project_id','item_name','current_version','deprecated_in','impact_level','replacement','type','status','removal_planned_for','affected_system','affected_users_count'])
-    deprecations=db.query(Deprecation).all()
+def export_deprecations(format: str = "csv", db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    deprecations = db.query(Deprecation).all()
+    headers = ['ID', 'Project', 'Item', 'Version', 'Depr. In', 'Impact', 'Replacement', 'Type', 'Status', 'Remov. Plan', 'System', 'Users']
+    
+    data = []
     for dep in deprecations:
-        writer.writerow([
+        data.append([
             dep.id,
             dep.project_id,
             dep.item_name,
@@ -208,9 +210,50 @@ def export_deprecation_csv(format:str="csv",db:Session=Depends(get_db),current_u
             dep.affected_system,
             dep.affected_users_count
         ])
-    return Response(content=output.getvalue(),
-    media_type="text/csv",
-    headers={"Content-Disposition": "attachment; filename=deprecations.csv"})
+
+    if format == "csv":
+        output = StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['id','project_id','item_name','current_version','deprecated_in','impact_level','replacement','type','status','removal_planned_for','affected_system','affected_users_count'])
+        writer.writerows(data)
+        return Response(
+            content=output.getvalue(),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=deprecations.csv"}
+        )
+    
+    elif format == "pdf":
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        elements.append(Paragraph("Deprecations Export", styles['Title']))
+        
+        table_data = [headers] + data
+        # Scale down the font size for PDF to fit more content
+        table = Table(table_data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        elements.append(table)
+        doc.build(elements)
+        
+        return Response(
+            content=buffer.getvalue(),
+            media_type="application/pdf",
+            headers={"Content-Disposition": "attachment; filename=deprecations.pdf"}
+        )
+    
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported format. Supported: csv, pdf")
 
         
 
