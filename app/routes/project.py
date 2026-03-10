@@ -6,6 +6,7 @@ from app.database import get_db
 from app.schemas.dependencies import get_current_user
 from app.models import Team, Project, User
 from app.model.role import ProjectStatus
+from app.utils.security import sanitize_text
 
 
 
@@ -49,6 +50,8 @@ def create_project(project: ProjectCreate, db: Session = Depends(get_db), curren
     if db.query(Project).filter(Project.name == project.name).first():
         raise HTTPException(status_code=400, detail="Project name already exists")
     
+    project.description = sanitize_text(project.description)
+
     new_project = Project(
         **project.model_dump()
     )
@@ -85,7 +88,7 @@ def update_project(project_id: int, project_update: ProjectUpdate, db: Session =
             raise HTTPException(status_code=400, detail="Project name already exists")
         project.name = project_update.name
     if project_update.description:
-        project.description = project_update.description
+        project.description = sanitize_text(project_update.description)
     if project_update.status:
         project.status = project_update.status  
     

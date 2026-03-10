@@ -9,6 +9,7 @@ from app.schemas.dependencies import (
     DebtCommentCreate,
     DebtCommentResponse,
 )
+from app.utils.security import sanitize_text
 
 
 router = APIRouter(
@@ -48,7 +49,7 @@ def add_comment(
     comment=DebtComment(
         debt_id=debt_id,
         user_id=current_user.id,
-        comment=comment_data.comment
+        comment=sanitize_text(comment_data.comment)
     )
     db.add(comment)
     db.commit()

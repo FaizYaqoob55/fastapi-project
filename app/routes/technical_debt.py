@@ -16,7 +16,7 @@ from app.schemas.dependencies import (
 from app.models import Project, TechnicalDebt, User, DebtComment,DebtStatusHistory
 from app.model.role import DebtPriority,DebtStatus,UserRole
 from fastapi import Body
-
+from app.utils.security import sanitize_text
 
 router = APIRouter(
     prefix="/technical-debts",
@@ -46,8 +46,8 @@ def create_technical_debt(
     debt=TechnicalDebt(
         project_id=data.project_id,
         owner_id=owner_id,
-        title=data.title,
-        description=data.description,
+        title=sanitize_text(data.title),
+        description=sanitize_text(data.description),
         priority=data.priority,
         severity=data.severity,
         estimated_effort=data.estimated_effort,
@@ -127,6 +127,10 @@ def update_technical_debt(
         raise HTTPException(status_code=404,detail="Technical debt not found")
     for key,value in data.dict(exclude_unset=True).items():
         setattr(debt,key,value)
+
+    debt.title=sanitize_text(debt.title)
+    debt.description=sanitize_text(debt.description)
+    
     db.commit()
     db.refresh(debt)
     return debt
@@ -170,7 +174,7 @@ def add_debt_comment(
     comment = DebtComment(
         debt_id=debt_id,
         user_id=current_user.id,
-        comment=data.comment
+        comment=sanitize_text(data.comment)
     )
 
     db.add(comment)

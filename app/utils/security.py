@@ -2,6 +2,7 @@ import os
 import bcrypt
 from datetime import datetime, timedelta
 import jwt
+import html
 # from .env import SECRET_KEY as SeCRET_KEY
 from dotenv import load_dotenv
 
@@ -43,3 +44,8 @@ def refresh_access_token(data:dict,expires_delta:timedelta |None=None):
     to_encode.update({'exp':expire})
     encoded_jwt=jwt.encode(to_encode,SECRET_KEY,algorithm=ALGORITHM)
     return encoded_jwt
+
+def sanitize_text(text:str):
+    if not text:
+        return text
+    return html.escape(text.strip())

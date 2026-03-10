@@ -4,6 +4,7 @@ from app.database import get_db
 from app.models import User,Deprecation,DeprecationTimeline
 from app.schemas.dependencies import get_current_user,DeprecationTimelineCreate
 from app.model.role import TimeLineStage
+from app.utils.security import sanitize_text
 
 
 router = APIRouter(
@@ -18,10 +19,13 @@ def create_deprecation_timeline(deprecation_id:int, timeline:DeprecationTimeline
     deprecation = db.query(Deprecation).filter(Deprecation.id == deprecation_id).first()
     if not deprecation:
         raise HTTPException(status_code=404,detail="Deprecation not found")
-    timeline = DeprecationTimeline(deprecation_id=deprecation_id,stage=timeline.stage,planned_date=timeline.planned_date)
+    timeline = DeprecationTimeline(deprecation_id=deprecation_id,stage=timeline.stage,planned_date=timeline.planned_date,notes=sanitize_text(timeline.notes))
     existing_timeline = db.query(DeprecationTimeline).filter(DeprecationTimeline.deprecation_id == deprecation_id,DeprecationTimeline.stage == timeline.stage).first()
     if existing_timeline:
         raise HTTPException(status_code=400,detail="Timeline already exists")
+
+
+   
 
     db.add(timeline)
     db.commit()
@@ -49,7 +53,7 @@ def update_deprecation_timeline(deprecation_id:int,timeline_id:int,timeline:Depr
         raise HTTPException(status_code=400,detail="Timeline already removed")
     timeline_obj.stage = timeline.stage
     timeline_obj.planned_date = timeline.planned_date
-    timeline_obj.notes = timeline.notes
+    timeline_obj.notes = sanitize_text(timeline.notes)
     db.commit()
     db.refresh(timeline_obj)
     return timeline_obj

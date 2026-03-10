@@ -12,6 +12,7 @@ from app.schemas.dependencies import (
     ImpactReport
 )
 from app.model.role import TimeLineStage
+from app.utils.security import sanitize_text
 
 
 router = APIRouter(
@@ -39,6 +40,12 @@ def create_deprecation(deprecation:deprecationsCreate,current_user:User=Depends(
     dep_data['impact_level'] = impact
     if 'affected_systems' in dep_data:
         dep_data['affected_system'] = dep_data.pop('affected_systems')
+    dep_data['migration_notes'] = sanitize_text(dep_data['migration_notes'])
+    dep_data['item_name'] = sanitize_text(dep_data['item_name'])
+    dep_data['replacement'] = sanitize_text(dep_data['replacement'])
+    dep_data['current_version'] = sanitize_text(dep_data['current_version'])
+    dep_data['deprecated_in'] = sanitize_text(dep_data['deprecated_in'])
+    dep_data['removal_planned_for'] = sanitize_text(dep_data['removal_planned_for'])
     dep=Deprecation(**dep_data)
     db.add(dep)
     db.commit()
@@ -100,6 +107,12 @@ def update_deprecation(id:int,deprecation:deprecationsUpdate,current_user:User=D
         setattr(dep,key,value)
     impact=calculate_impact(deprecation.affected_users_count or 0)
     dep.impact_level=impact
+    dep.migration_notes = sanitize_text(dep.migration_notes)
+    dep.item_name = sanitize_text(dep.item_name)
+    dep.replacement = sanitize_text(dep.replacement)
+    dep.current_version = sanitize_text(dep.current_version)
+    dep.deprecated_in = sanitize_text(dep.deprecated_in)
+    dep.removal_planned_for = sanitize_text(dep.removal_planned_for)
     db.commit()
     db.refresh(dep)
     return dep
