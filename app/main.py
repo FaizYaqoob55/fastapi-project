@@ -6,7 +6,7 @@ from app.models import User, Team, TeamMember, Project
 from app.utils.security import hash_password, verify_password, create_access_token, refresh_access_token
 import uvicorn
 from app import models
-from app.routes import action_item, admin, growth_session, mention, project, session_note, team,users,technical_debt, deprecation,deprecation_timeline
+from app.routes import action_item, admin, growth_session, mention, project, session_note, team,users,technical_debt, deprecation,deprecation_timeline,comments
 from fastapi.security import OAuth2PasswordRequestForm
 from app.model.role import UserRole
 from app.utils import notifications
@@ -33,6 +33,7 @@ app.include_router(action_item.router)
 app.include_router(notifications.router)
 app.include_router(users.router)
 app.include_router(technical_debt.router)
+app.include_router(comments.router)
 app.include_router(mention.router)
 app.include_router(deprecation.router)
 app.include_router(deprecation_timeline.router)
@@ -87,6 +88,10 @@ def update_user(id: int, updated_user: Usercreate, db: Session = Depends(get_db)
     
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
+    if user.email != updated_user.email:
+        existing_user = db.query(User).filter(User.email == updated_user.email).first()
+        if existing_user:
+            raise HTTPException(status_code=400, detail='Email already registered')
     
     user_data = updated_user.model_dump()
     user_data['password'] = hash_password(user_data['password']) 

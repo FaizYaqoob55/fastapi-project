@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Body, status
 from sqlalchemy.orm import Session
@@ -97,10 +98,15 @@ def get_growth_sessions(
     current_user: User = Depends(get_current_user), 
     team_id: Optional[int] = Query(None), 
     status: Optional[SessionStatus] = Query(None), 
-    session_date: Optional[str] = Query(None)
+    session_date: Optional[date] = Query(None)
 ):
     query = db.query(GrowthSession)
-    
+    if team_id:
+        team = db.query(Team).filter(Team.id == team_id).first()
+        if not team:
+            raise HTTPException(status_code=404, detail="Team not found")
+        if current_user.role not in [UserRole.admin, UserRole.lead] and team.lead_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to view growth sessions")       
     if team_id:
         query = query.filter(GrowthSession.team_id == team_id)
   

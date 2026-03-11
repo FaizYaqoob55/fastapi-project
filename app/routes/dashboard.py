@@ -107,7 +107,7 @@ def technical_debt_dashboard_endpoint(request: Request, db: Session = Depends(ge
 
 
 @router.get("/technical_debt/export")
-def export_technical_debt_csv(priority: str |None=None ,status: str |None=None, project_id: int |None=None,db: Session = Depends(get_db)):
+def export_technical_debt_csv(priority: str |None=None ,status: str |None=None, project_id: int |None=None,db: Session = Depends(get_db),current_user: User = Depends(get_current_user)):
     query = db.query(TechnicalDebt)
     if priority:
         query = query.filter(TechnicalDebt.priority == priority)

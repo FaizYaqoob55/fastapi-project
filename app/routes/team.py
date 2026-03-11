@@ -29,6 +29,8 @@ def create_team(team: TeamCreate, db: Session = Depends(get_db), current_user: U
 
 @router.get("/", response_model=list[TeamResponse])
 def get_teams(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.role not in [UserRole.admin, UserRole.lead]:
+        raise HTTPException(status_code=403, detail="Not authorized to view teams")
     teams = db.query(Team).all()
     return teams
 
