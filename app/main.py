@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Response
+from fastapi import FastAPI, Depends, HTTPException, status, Response, Request
 from app.schemas.dependencies import Usercreate, LoginRequest, get_current_user, requires_role, UserResponse
 from app.database import engine, Base, get_db
 from sqlalchemy.orm import Session
@@ -11,9 +11,12 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.model.role import UserRole
 from app.utils import notifications
 from app.routes.dashboard import router as dashboard_router
+from app.ratelimit import limiter
+
 
 app = FastAPI(title="My FastAPI Application")
 
+app.state.limiter = limiter
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
@@ -93,7 +96,8 @@ def update_user(id: int, updated_user: Usercreate, db: Session = Depends(get_db)
     return user_query.first()
 
 @app.post("/login")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user:
         raise HTTPException(status_code=400, detail='Invalid email')
@@ -118,7 +122,8 @@ def refresh_token(request: LoginRequest, db: Session = Depends(get_db)):
     return {"refresh_token": refresh, "token_type": "bearer"}
 
 @app.get('/me')
-def my_profile(current_user: User = Depends(get_current_user)):
+@limiter.limit("5/minute")
+def my_profile(request: Request, current_user: User = Depends(get_current_user)):
     return {
         'id': current_user.id,
         'email': current_user.email,

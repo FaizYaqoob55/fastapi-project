@@ -1,6 +1,6 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from datetime import date, timedelta
 from app.models import User, Deprecation, Project, DeprecationTimeline, TechnicalDebt
@@ -8,6 +8,7 @@ from app.schemas.dependencies import (
     get_current_user, 
     deprecationsCreate, 
     deprecationsUpdate, 
+    deprecationsResponse,
     DeprecationTimelineResponse,
     ImpactReport
 )
@@ -52,7 +53,7 @@ def create_deprecation(deprecation:deprecationsCreate,current_user:User=Depends(
     db.refresh(dep)
     return dep
 
-@router.get("/deprecation")
+@router.get("/deprecation", response_model=list[deprecationsResponse])
 def list_deprecations(
     project_id:int |None=None,
     type:str |None=None,
@@ -61,7 +62,11 @@ def list_deprecations(
     sort_by:str |None=None,
     db:Session=Depends(get_db)
 ):
-    query=db.query(Deprecation)
+    query=db.query(Deprecation).options(
+        joinedload(Deprecation.project),
+        joinedload(Deprecation.timeline),
+        joinedload(Deprecation.technical_debts)
+    )
     if project_id:
         query=query.filter(Deprecation.project_id==project_id)
     if type:
@@ -82,9 +87,13 @@ def list_deprecations(
     return query.all()
 
 
-@router.get("/deprecation/{id}")
+@router.get("/deprecation/{id}", response_model=deprecationsResponse)
 def get_deprecation(id:int,db:Session=Depends(get_db)):
-    dep=db.query(Deprecation).filter(Deprecation.id==id).first()
+    dep=db.query(Deprecation).options(
+        joinedload(Deprecation.project),
+        joinedload(Deprecation.timeline),
+        joinedload(Deprecation.technical_debts)
+    ).filter(Deprecation.id==id).first()
     if not dep:
         raise HTTPException(status_code=404,detail="Deprecation not found")
     return dep
@@ -133,7 +142,11 @@ def link_debt(id:int,debt_id:int,current_user:User=Depends(get_current_user),db:
 
 @router.get("/{id}/impact-report",response_model=ImpactReport)
 def impact_report(id:int,db:Session=Depends(get_db)):
-    dep=db.query(Deprecation).filter(Deprecation.id==id).first()
+    dep=db.query(Deprecation).options(
+        joinedload(Deprecation.project),
+        joinedload(Deprecation.timeline),
+        joinedload(Deprecation.technical_debts)
+    ).filter(Deprecation.id==id).first()
     if not dep:
         raise HTTPException(status_code=404,detail="Deprecation not found")
     today = date.today()

@@ -1,6 +1,6 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy.orm import Session,joinedload
 from sqlalchemy import asc, desc
 from app.database import get_db
 from app.routes import project
@@ -17,6 +17,7 @@ from app.models import Project, TechnicalDebt, User, DebtComment,DebtStatusHisto
 from app.model.role import DebtPriority,DebtStatus,UserRole
 from fastapi import Body
 from app.utils.security import sanitize_text
+from app.ratelimit import limiter
 
 router = APIRouter(
     prefix="/technical-debts",
@@ -27,11 +28,11 @@ router = APIRouter(
 
 
 @router.post("/",response_model=TechnicalResponse)
-def create_technical_debt(
-    data:TechnicalDebtCreate,
+@limiter.limit("5/minute")
+def create_technical_debt(request: Request,data:TechnicalDebtCreate,
     db:Session=Depends(get_db),
     current_user=Depends(get_current_user)
-):
+): 
     if owner_id := data.owner_id:
         owner = db.query(User).filter(User.id == owner_id).first()
         if not owner:
@@ -72,7 +73,10 @@ def get_technical_debts(
     order:Optional[str]=Query("desc",description="asc | desc")
 
 ):
-    query=db.query(TechnicalDebt)
+    query=db.query(TechnicalDebt).options(
+        joinedload(TechnicalDebt.owner),
+        joinedload(TechnicalDebt.project)
+    )
     #    filters
     if project_id:
         query=query.filter(TechnicalDebt.project_id == project_id)
@@ -106,16 +110,32 @@ def get_technical_debts(
 
 
 
+@router.get("/technical-debt")
+@limiter.limit("5/minute")
+def get_technical_debt_list(
+    request: Request,
+    Skip:int=0,
+    limit:int=1,
+    db:Session=Depends(get_db)
+): 
+    return db.query(TechnicalDebt).options(
+        joinedload(TechnicalDebt.owner),
+        joinedload(TechnicalDebt.project)
+    ).offset(Skip).limit(limit).all()
+
 @router.get("/{debt_id}",response_model=TechnicalResponse)
 def get_technical_debt(
     debt_id:int,
     db:Session=Depends(get_db)
 ):
-    debt=db.query(TechnicalDebt).filter(TechnicalDebt.id==debt_id).first()
+    debt=db.query(TechnicalDebt).options(
+        joinedload(TechnicalDebt.owner),
+        joinedload(TechnicalDebt.project)
+    ).filter(TechnicalDebt.id==debt_id).first()
     if not debt:
         raise HTTPException(status_code=404,detail="Technical Debt not found")
     return debt
-
+ 
 @router.put("/{debt_id}",response_model=TechnicalResponse)
 def update_technical_debt(
     debt_id:int,
@@ -134,6 +154,7 @@ def update_technical_debt(
     db.commit()
     db.refresh(debt)
     return debt
+
 
 
 @router.delete("/{debt_id}")
