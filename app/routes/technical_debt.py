@@ -77,11 +77,20 @@ def get_technical_debts(
         joinedload(TechnicalDebt.owner),
         joinedload(TechnicalDebt.project)
     )
-    if current_user.role != UserRole.admin:
-        query=query.filter(TechnicalDebt.owner_id == current_user.id)
-    if current_user.role != UserRole.tech_lead:
+    if current_user.role == UserRole.admin:
+        pass  # Admins can see all technical debts
+    elif current_user.role == UserRole.lead:
+        # Leads can see all debts associated with their teams
+        team_ids = [t.id for t in current_user.team] if current_user.team else []
         query=query.filter(TechnicalDebt.project_id.in_(
-            db.query(Project.id).filter(Project.team_id == current_user.team_id).all()
+            db.query(Project.id).filter(Project.team_id.in_(team_ids)).all()
+        ))
+    else:
+        # Developers/Viewers can only see debts assigned to them, within their teams
+        query=query.filter(TechnicalDebt.owner_id == current_user.id)
+        team_ids = [t.id for t in current_user.team] if current_user.team else []
+        query=query.filter(TechnicalDebt.project_id.in_(
+            db.query(Project.id).filter(Project.team_id.in_(team_ids)).all()
         ))
     
     #    filters

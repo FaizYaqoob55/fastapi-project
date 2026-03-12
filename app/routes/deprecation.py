@@ -58,7 +58,7 @@ def create_deprecation(deprecation:deprecationsCreate,current_user:User=Depends(
 def list_deprecations(
     project_id:int |None=None,
     type:str |None=None,
-    impact_level:int |None=None,
+    impact_level:str |None=None,
     search:str |None=None,
     sort_by:str |None=None,
     db:Session=Depends(get_db),

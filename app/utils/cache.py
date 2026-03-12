@@ -29,8 +29,17 @@ def cache_response(expire: int = 300):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             # Generate a unique cache key based on function name and arguments
-            # We filter out non-serializable arguments like Request or Session
-            cache_args = {k: v for k, v in kwargs.items() if not isinstance(v, (Request, Session))}
+            # We filter out non-serializable arguments like Request, Session, or current_user
+            cache_args = {}
+            for k, v in kwargs.items():
+                if isinstance(v, (Request, Session)):
+                    continue
+                if k == "current_user":
+                    continue
+                # Also ignore anything that looks like an ORM model
+                if hasattr(v, "_sa_instance_state"):
+                    continue
+                cache_args[k] = v
             
             # If current_user is passed, include their ID in the key
             user_id = ""
