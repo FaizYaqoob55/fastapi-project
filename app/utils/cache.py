@@ -1,6 +1,7 @@
 import json
 import os
 import functools
+import time
 from typing import Any, Callable
 import redis
 from datetime import timedelta
@@ -16,8 +17,14 @@ redis_client = redis.Redis(
     host=REDIS_HOST,
     port=REDIS_PORT,
     db=REDIS_DB,
-    decode_responses=True
+    decode_responses=True,
+    socket_connect_timeout=0.5,
+    socket_timeout=0.5
 )
+
+# Circuit Breaker for Redis
+REDIS_CIRCUIT_BREAKER_OPEN_UNTIL = 0
+CIRCUIT_BREAKER_COOLDOWN = 60  # seconds
 
 def cache_response(expire: int = 300):
     """
@@ -48,14 +55,21 @@ def cache_response(expire: int = 300):
             
             key = f"dashboard:{func.__name__}{user_id}:{json.dumps(cache_args, sort_keys=True)}"
             
+            global REDIS_CIRCUIT_BREAKER_OPEN_UNTIL
+            
+            # Check circuit breaker
+            if time.time() < REDIS_CIRCUIT_BREAKER_OPEN_UNTIL:
+                return func(*args, **kwargs)
+            
             # Check Redis for existing cache
             try:
                 cached_data = redis_client.get(key)
                 if cached_data:
                     return json.loads(cached_data)
             except redis.RedisError:
-                # If Redis is down, fail gracefully and execute the function
-                pass
+                # If Redis is down, fail gracefully and open the circuit breaker
+                REDIS_CIRCUIT_BREAKER_OPEN_UNTIL = time.time() + CIRCUIT_BREAKER_COOLDOWN
+                return func(*args, **kwargs)
 
             # Execute the function
             result = func(*args, **kwargs)
@@ -68,8 +82,8 @@ def cache_response(expire: int = 300):
                     json.dumps(result)
                 )
             except redis.RedisError:
-                # If Redis is down, just continue
-                pass
+                # If Redis is down, open the circuit breaker
+                REDIS_CIRCUIT_BREAKER_OPEN_UNTIL = time.time() + CIRCUIT_BREAKER_COOLDOWN
 
             return result
         return wrapper
