@@ -9,6 +9,7 @@ from app.schemas.dependencies import (
     ActionItemUpdate
 )
 from app.models import GrowthSession, ActionItem, Team, User
+from app.utils.security import sanitize_text
 
 router = APIRouter(
     prefix="/sessions/{session_id}/action-items",
@@ -34,7 +35,7 @@ def create_action_item(session_id: int, item_in: ActionItemCreate, db: Session =
     check_session_access(session_id, db, current_user)
     
     action_item = ActionItem(
-        title=item_in.title,
+        title=sanitize_text(item_in.title),
         status=item_in.status or Action_Status.pending,
         session_id=session_id,
         completed=False
@@ -80,6 +81,8 @@ def update_action_item(session_id: int, item_id: int, item_in: ActionItemUpdate,
         item.completed = item_in.completed
         if item_in.completed:
             item.status = Action_Status.completed
+    
+    item.title = sanitize_text(item.title)
     
     db.commit()
     db.refresh(item)

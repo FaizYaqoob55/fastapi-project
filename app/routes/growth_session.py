@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Body, status
 from sqlalchemy.orm import Session
@@ -15,6 +16,7 @@ from app.utils.ics_generator import generate_ics_file
 from fastapi.responses import Response
 
 from app.utils.notifications import create_notification, dispatch_notification_email
+from app.utils.security import sanitize_text
 
 router = APIRouter(
     prefix="/growth-sessions",
@@ -34,7 +36,7 @@ def create_growth_session(data: GrowthSessionCreate, db: Session = Depends(get_d
     if current_user.role != UserRole.admin and team.lead_id != current_user.id:
         raise HTTPException(status_code=403, detail="Only the team lead or admin can create sessions for this team")
     
-
+    data.title = sanitize_text(data.title)
     session = GrowthSession(
         title=data.title,
         date=data.date,
@@ -96,10 +98,15 @@ def get_growth_sessions(
     current_user: User = Depends(get_current_user), 
     team_id: Optional[int] = Query(None), 
     status: Optional[SessionStatus] = Query(None), 
-    session_date: Optional[str] = Query(None)
+    session_date: Optional[date] = Query(None)
 ):
     query = db.query(GrowthSession)
-    
+    if team_id:
+        team = db.query(Team).filter(Team.id == team_id).first()
+        if not team:
+            raise HTTPException(status_code=404, detail="Team not found")
+        if current_user.role not in [UserRole.admin, UserRole.lead] and team.lead_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to view growth sessions")       
     if team_id:
         query = query.filter(GrowthSession.team_id == team_id)
   
@@ -132,7 +139,8 @@ def update_growth_session(session_id: int, data: GrowthSessionUpdate, db: Sessio
     for key, value in data.dict(exclude_unset=True).items():
         if value is not None:
             setattr(session, key, value)
-            
+    
+    session.title = sanitize_text(session.title)
     db.commit()
     db.refresh(session)
     return session

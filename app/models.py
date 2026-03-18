@@ -136,6 +136,10 @@ class TechnicalDebt(Base):
     actual_effort=Column(Integer,nullable=True)
     due_date=Column(Date,nullable=True)
     created_at=Column(DateTime,default=datetime.utcnow)
+    
+    owner=relationship("User", foreign_keys=[owner_id])
+    project=relationship("Project", foreign_keys=[project_id])
+    
     comments=relationship("DebtComment",backref="technical_debt",cascade="all,delete-orphan")
     deprecations=relationship("Deprecation",secondary=deprecation_debt_link,back_populates="technical_debts")
 
@@ -178,6 +182,9 @@ class Deprecation(Base):
     affected_system=Column(Text)
     affected_users_count=Column(Integer,default=0)
     impact_level=Column(String)
+    
+    project=relationship("Project", foreign_keys=[project_id])
+    
     timeline=relationship("DeprecationTimeline",back_populates="deprecation",cascade="all,delete")
     technical_debts=relationship("TechnicalDebt",secondary=deprecation_debt_link,back_populates="deprecations",cascade="all,delete")
 

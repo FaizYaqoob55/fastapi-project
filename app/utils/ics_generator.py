@@ -10,13 +10,19 @@ def generate_ics_file(session):
         cal = Calendar()
         event = Event()
         event.name = session.title
-        # normalize date to datetime for the ics Event
-        if isinstance(session.date, datetime):
+        # Use start_time and end_time if available
+        if hasattr(session, 'start_time') and session.start_time:
+                # Combine session.date with session.start_time to ensure correct day and time
+                event.begin = datetime.combine(session.date, session.start_time.time())
+        elif isinstance(session.date, datetime):
                 event.begin = session.date
         elif isinstance(session.date, date):
                 event.begin = datetime.combine(session.date, datetime.min.time())
         else:
                 event.begin = session.date
+
+        if hasattr(session, 'end_time') and session.end_time:
+                event.end = datetime.combine(session.date, session.end_time.time())
 
         event.description = "Growth session"
         if getattr(session, 'meeting_link', None):

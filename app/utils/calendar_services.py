@@ -1,5 +1,4 @@
-from asyncio import Event
-import calendar
+from icalendar import Calendar, Event
 from datetime import timedelta
 import uuid
 
@@ -18,7 +17,7 @@ import uuid
 
 
 def create_calendar_event(session):
-    cal=calendar()
+    cal=Calendar()
     event=Event()
     event.add('dtstart',session.date)
     event.add('dtend',session.date+timedelta(hours=1))

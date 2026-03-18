@@ -19,7 +19,7 @@ def create_team(team: TeamCreate, db: Session = Depends(get_db), current_user: U
     existing_team = db.query(Team).filter(Team.name == team.name).first()
     if existing_team:
         raise HTTPException(status_code=400, detail="Team name already exists")
-    if current_user.role not in [UserRole.admin, UserRole.lead]:
+    if current_user.role not in [UserRole.admin]:
         raise HTTPException(status_code=403, detail="Not authorized to create teams")
 
     db.add(new_team)
@@ -29,6 +29,8 @@ def create_team(team: TeamCreate, db: Session = Depends(get_db), current_user: U
 
 @router.get("/", response_model=list[TeamResponse])
 def get_teams(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.role not in [UserRole.admin, UserRole.lead]:
+        raise HTTPException(status_code=403, detail="Not authorized to view teams")
     teams = db.query(Team).all()
     return teams
 
@@ -92,7 +94,7 @@ def delete_team(team_id: int, db: Session = Depends(get_db), current_user: User 
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
-    if team.lead_id != current_user.id:
+    if team.lead_id != current_user.id and current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Not authorized to delete this team")
     db.delete(team)
     db.commit()

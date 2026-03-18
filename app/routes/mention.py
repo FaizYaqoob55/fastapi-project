@@ -9,6 +9,7 @@ from app.schemas.dependencies import (
     DebtCommentCreate,
     DebtCommentResponse,
 )
+from app.utils.security import sanitize_text
 
 
 router = APIRouter(
@@ -24,11 +25,24 @@ def handle_mention(
         sender_id:int
 ):
     mentioned_usernames=re.findall(r'@(\w+)',comment_text)
+    emails=re.findall(r'[\w\.-]+@[\w\.-]+', comment_text)
+    
+    users_to_notify = set()
+
     for username in mentioned_usernames:
         user=db.query(User).filter(User.name==username).first()
         if user:
-            notification=Notification(user_id=user.id,type=NotificationType.mention,message=f"You were mentioned in a comment")
-            db.add(notification)
+            users_to_notify.add(user)
+            
+    for email in emails:
+        user=db.query(User).filter(User.email==email).first()
+        if user:
+            users_to_notify.add(user)
+
+    for user in users_to_notify:
+        notification=Notification(user_id=user.id,type=NotificationType.mention,message=f"You were mentioned in a comment: {comment_text}")
+        db.add(notification)
+
     db.commit()
 
 
@@ -48,7 +62,7 @@ def add_comment(
     comment=DebtComment(
         debt_id=debt_id,
         user_id=current_user.id,
-        comment=comment_data.comment
+        comment=sanitize_text(comment_data.comment)
     )
     db.add(comment)
     db.commit()

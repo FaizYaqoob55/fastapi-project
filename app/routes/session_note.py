@@ -9,6 +9,7 @@ from app.schemas.dependencies import (
     SessionNoteUpdate
 )
 from app.models import GrowthSession, SessionNote, Team, User
+from app.utils.security import sanitize_text
 
 router = APIRouter(
     prefix="/sessions/{session_id}/notes",
@@ -33,7 +34,7 @@ def check_session_access(session_id: int, db: Session, current_user: User):
 def create_note(session_id: int, note_in: SessionNoteCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     check_session_access(session_id, db, current_user)
     
-    note = SessionNote(content=note_in.content, session_id=session_id)
+    note = SessionNote(content=sanitize_text(note_in.content), session_id=session_id)
     db.add(note)
     db.commit()
     db.refresh(note)
@@ -64,6 +65,8 @@ def update_note(session_id: int, note_id: int, note_in: SessionNoteUpdate, db: S
     
     if note_in.content is not None:
         note.content = note_in.content
+    
+    note.content = sanitize_text(note.content)
     
     db.commit()
     db.refresh(note)

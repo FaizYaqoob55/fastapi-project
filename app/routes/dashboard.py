@@ -11,6 +11,8 @@ from datetime import date, timedelta
 from app.database import get_db
 from app.schemas.dependencies import TechnicalDebtDashboardResponse, get_current_user
 from app.models import GrowthSession, Project, Team, TechnicalDebt, User, Deprecation, DeprecationTimeline
+from app.utils.cache import cache_response
+from fastapi import Request
 from app.model.role import TimeLineStage
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
@@ -48,7 +50,8 @@ def technical_debt_dashboard(db:Session,again_days:int =30):
 
 
 @router.get("/growth-session")
-def growth_session_dashboard(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@cache_response(expire=300)
+def growth_session_dashboard(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     total_sessions = db.query(func.count(GrowthSession.id)).scalar()
     completed_sessions = db.query(func.count(GrowthSession.id)).filter(GrowthSession.status == "completed").scalar()
     upcoming_sessions = db.query(func.count(GrowthSession.id)).filter(GrowthSession.date >= date.today()).scalar()
@@ -97,13 +100,14 @@ def growth_session_dashboard(db: Session = Depends(get_db), current_user: User =
     }
 
 @router.get("/technical-debt",response_model=TechnicalDebtDashboardResponse)
-def technical_debt_dashboard_endpoint(db: Session = Depends(get_db), again_days: int = Query(30, ge=0), current_user: User = Depends(get_current_user)):
+@cache_response(expire=300)
+def technical_debt_dashboard_endpoint(request: Request, db: Session = Depends(get_db), again_days: int = Query(30, ge=0), current_user: User = Depends(get_current_user)):
     return technical_debt_dashboard(db, again_days)
 
 
 
 @router.get("/technical_debt/export")
-def export_technical_debt_csv(priority: str |None=None ,status: str |None=None, project_id: int |None=None,db: Session = Depends(get_db)):
+def export_technical_debt_csv(priority: str |None=None ,status: str |None=None, project_id: int |None=None,db: Session = Depends(get_db),current_user: User = Depends(get_current_user)):
     query = db.query(TechnicalDebt)
     if priority:
         query = query.filter(TechnicalDebt.priority == priority)
@@ -126,7 +130,8 @@ def export_technical_debt_csv(priority: str |None=None ,status: str |None=None, 
 
 
 @router.get("/deprecations")
-def deprecation_dashboard(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@cache_response(expire=300)
+def deprecation_dashboard(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     today = date.today()
     next_30_days = today + timedelta(days=30)
 

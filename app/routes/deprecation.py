@@ -1,6 +1,6 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from datetime import date, timedelta
 from app.models import User, Deprecation, Project, DeprecationTimeline, TechnicalDebt
@@ -8,10 +8,13 @@ from app.schemas.dependencies import (
     get_current_user, 
     deprecationsCreate, 
     deprecationsUpdate, 
+    deprecationsResponse,
     DeprecationTimelineResponse,
-    ImpactReport
+    ImpactReport,
+    UserRole
 )
 from app.model.role import TimeLineStage
+from app.utils.security import sanitize_text
 
 
 router = APIRouter(
@@ -39,22 +42,38 @@ def create_deprecation(deprecation:deprecationsCreate,current_user:User=Depends(
     dep_data['impact_level'] = impact
     if 'affected_systems' in dep_data:
         dep_data['affected_system'] = dep_data.pop('affected_systems')
+    dep_data['migration_notes'] = sanitize_text(dep_data['migration_notes'])
+    dep_data['item_name'] = sanitize_text(dep_data['item_name'])
+    dep_data['replacement'] = sanitize_text(dep_data['replacement'])
+    dep_data['current_version'] = sanitize_text(dep_data['current_version'])
+    dep_data['deprecated_in'] = sanitize_text(dep_data['deprecated_in'])
+    dep_data['removal_planned_for'] = sanitize_text(dep_data['removal_planned_for'])
     dep=Deprecation(**dep_data)
     db.add(dep)
     db.commit()
     db.refresh(dep)
     return dep
 
-@router.get("/deprecation")
+@router.get("/deprecation", response_model=list[deprecationsResponse])
 def list_deprecations(
     project_id:int |None=None,
     type:str |None=None,
-    impact_level:int |None=None,
+    impact_level:str |None=None,
     search:str |None=None,
     sort_by:str |None=None,
-    db:Session=Depends(get_db)
+    db:Session=Depends(get_db),
+    current_user:User=Depends(get_current_user)
 ):
-    query=db.query(Deprecation)
+    query=db.query(Deprecation).options(
+        joinedload(Deprecation.project),
+        joinedload(Deprecation.timeline),
+        joinedload(Deprecation.technical_debts)
+    )
+    
+    if current_user.role != UserRole.admin:
+        query=query.filter(Deprecation.project_id.in_(
+            db.query(Project.id).filter(Project.team_id == current_user.team_id).all()
+        ))  
     if project_id:
         query=query.filter(Deprecation.project_id==project_id)
     if type:
@@ -75,19 +94,34 @@ def list_deprecations(
     return query.all()
 
 
-@router.get("/deprecation/{id}")
-def get_deprecation(id:int,db:Session=Depends(get_db)):
-    dep=db.query(Deprecation).filter(Deprecation.id==id).first()
+@router.get("/deprecation/{id}", response_model=deprecationsResponse)
+def get_deprecation(id:int,db:Session=Depends(get_db),current_user:User=Depends(get_current_user)):
+    dep=db.query(Deprecation).options(
+        joinedload(Deprecation.project),
+        joinedload(Deprecation.timeline),
+        joinedload(Deprecation.technical_debts)
+    ).filter(Deprecation.id==id).first()
     if not dep:
         raise HTTPException(status_code=404,detail="Deprecation not found")
+    if current_user.role != UserRole.admin and dep.project_id not in (
+        db.query(Project.id).filter(Project.team_id == current_user.team_id).all()
+    ):
+        raise HTTPException(status_code=403,detail="Not authorized to view this deprecation")
     return dep
 
 
 @router.get("/upcoming-deadlines",response_model=list[DeprecationTimelineResponse])
-def upcoming_deadlines(db:Session=Depends(get_db)):
+def upcoming_deadlines(db:Session=Depends(get_db),current_user:User=Depends(get_current_user)):
     today=date.today()
     next_30_days=today+timedelta(days=30)
-    results=db.query(DeprecationTimeline).filter(DeprecationTimeline.planned_date>=today, DeprecationTimeline.planned_date<=next_30_days).all()
+    query=db.query(DeprecationTimeline).filter(DeprecationTimeline.planned_date>=today, DeprecationTimeline.planned_date<=next_30_days)
+    if current_user.role != UserRole.admin:
+        query=query.filter(DeprecationTimeline.deprecation_id.in_(
+            db.query(Deprecation.id).filter(Deprecation.project_id.in_(
+                db.query(Project.id).filter(Project.team_id == current_user.team_id).all()
+            )).all()
+        ))
+    results=query.all()
     return results
 
 
@@ -96,10 +130,20 @@ def update_deprecation(id:int,deprecation:deprecationsUpdate,current_user:User=D
     dep=db.query(Deprecation).filter(Deprecation.id==id).first()
     if not dep:
         raise HTTPException(status_code=404,detail="Deprecation not found")
+    if current_user.role != UserRole.admin and dep.project_id not in (
+        db.query(Project.id).filter(Project.team_id == current_user.team_id).all()
+    ):
+        raise HTTPException(status_code=403,detail="Not authorized to update this deprecation")
     for key,value in deprecation.dict(exclude_unset=True).items():
         setattr(dep,key,value)
     impact=calculate_impact(deprecation.affected_users_count or 0)
     dep.impact_level=impact
+    dep.migration_notes = sanitize_text(dep.migration_notes)
+    dep.item_name = sanitize_text(dep.item_name)
+    dep.replacement = sanitize_text(dep.replacement)
+    dep.current_version = sanitize_text(dep.current_version)
+    dep.deprecated_in = sanitize_text(dep.deprecated_in)
+    dep.removal_planned_for = sanitize_text(dep.removal_planned_for)
     db.commit()
     db.refresh(dep)
     return dep
@@ -110,6 +154,10 @@ def link_debt(id:int,debt_id:int,current_user:User=Depends(get_current_user),db:
     dep=db.query(Deprecation).filter(Deprecation.id==id).first()
     if not dep:
         raise HTTPException(status_code=404,detail="Deprecation not found")
+    if current_user.role != UserRole.admin and dep.project_id not in (
+        db.query(Project.id).filter(Project.team_id == current_user.team_id).all()
+    ):
+        raise HTTPException(status_code=403,detail="Not authorized to link debt to this deprecation")
     debt=db.query(TechnicalDebt).filter(TechnicalDebt.id==debt_id).first()
     if not debt:
         raise HTTPException(status_code=404,detail="Debt not found")
@@ -119,10 +167,18 @@ def link_debt(id:int,debt_id:int,current_user:User=Depends(get_current_user),db:
     return {"message":"Debt linked successfully"}
 
 @router.get("/{id}/impact-report",response_model=ImpactReport)
-def impact_report(id:int,db:Session=Depends(get_db)):
-    dep=db.query(Deprecation).filter(Deprecation.id==id).first()
+def impact_report(id:int,db:Session=Depends(get_db),current_user:User=Depends(get_current_user)):
+    dep=db.query(Deprecation).options(
+        joinedload(Deprecation.project),
+        joinedload(Deprecation.timeline),
+        joinedload(Deprecation.technical_debts)
+    ).filter(Deprecation.id==id).first()
     if not dep:
         raise HTTPException(status_code=404,detail="Deprecation not found")
+    if current_user.role != UserRole.admin and dep.project_id not in (
+        db.query(Project.id).filter(Project.team_id == current_user.team_id).all()
+    ):
+        raise HTTPException(status_code=403,detail="Not authorized to view impact report for this deprecation")
     today = date.today()
     upcoming=[
         t for t in dep.timeline
@@ -145,6 +201,10 @@ def delete_deprecation(id:int,current_user:User=Depends(get_current_user),db:Ses
     dep=db.query(Deprecation).filter(Deprecation.id==id).first()
     if not dep:
         raise HTTPException(status_code=404,detail="Deprecation not found")
+    if current_user.role != UserRole.admin and dep.project_id not in (
+        db.query(Project.id).filter(Project.team_id == current_user.team_id).all()
+    ):
+        raise HTTPException(status_code=403,detail="Not authorized to delete this deprecation")
     db.delete(dep)
     db.commit()
     return {"message":"Deprecation deleted successfully"}
