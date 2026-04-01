@@ -7,31 +7,44 @@ from app.model.role import UserRole,Action_Status,SessionStatus,NotificationType
 from app.database import get_db
 from app.models import User
 from app.utils.security import ALGORITHM, SECRET_KEY
-from fastapi.security import OAuth2PasswordBearer
-from typing import Optional
+from fastapi.security import OAuth2PasswordBearer, HTTPBearer
+from typing import List, Optional
 from datetime import date,datetime
 
 
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
+bearer_scheme = HTTPBearer()
 
 
 class TeamCreate(BaseModel):
     name: str
+    lead_id: Optional[int] = None
 
 class TeamUpdate(BaseModel):
     name: Optional[str] = None
+    lead_id: Optional[int] = None
 
+
+class UserInTeam(BaseModel):
+    id: int
+    name: str  
+    role: str      
+
+    class Config:
+        from_attributes = True
 
 class TeamResponse(BaseModel):
     id: int
     name: str
     lead_id: int
+    
+    lead: Optional[UserInTeam] = None 
+    members: List[UserInTeam] = [] 
 
     class Config:
         from_attributes = True
-
 
 class TeamMemberCreate(BaseModel):
     user_id: int
@@ -109,8 +122,8 @@ class GrowthSessionResponse(GrowthSessionBase):
 
 class Usercreate(BaseModel):
     name:str
-    password:str
     email:EmailStr
+    password: str = Field(..., min_length=8, description="Password must be at least 8 characters long")
 
 class UserResponse(BaseModel):
     id:int

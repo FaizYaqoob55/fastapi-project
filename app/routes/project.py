@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas.dependencies import get_current_user
 from app.models import Team, Project, User
-from app.model.role import ProjectStatus
+from app.model.role import ProjectStatus, UserRole
 from app.utils.security import sanitize_text
 
 
@@ -63,13 +63,36 @@ def create_project(project: ProjectCreate, db: Session = Depends(get_db), curren
 @router.get("/", response_model=list[ProjectResponse])
 def get_projects(db: Session = Depends(get_db), current_user: User = Depends(get_current_user), team_id: Optional[int] = None):
     query = db.query(Project)
+    
+    # 1. Agar Team ID di gayi hai
     if team_id:
         team = db.query(Team).filter(Team.id == team_id).first()
         if not team:
             raise HTTPException(status_code=404, detail="Team not found")
+        
+        # --- SECURITY CHECK START ---
+        is_member = any(m.id == current_user.id for m in team.members)
+        is_lead = team.lead_id == current_user.id
+        is_admin = current_user.role == UserRole.admin
+
+        if not (is_admin or is_lead or is_member):
+            raise HTTPException(status_code=403, detail="Not authorized to view projects for this team")
+        # --- SECURITY CHECK END ---
+
         query = query.filter(Project.team_id == team.id)
+    
+    # 2. Agar Team ID nahi di, to sirf wahi projects dikhao jin ka user hissa hai
+    else:
+        if current_user.role != UserRole.admin:
+            # Sirf un teams ke projects filter karein jahan user member ya lead hai
+            query = query.join(Team).filter(
+                (Team.lead_id == current_user.id) | 
+                (Team.members.any(User.id == current_user.id))
+            )
+
     projects = query.all()
     return projects
+
 
 @router.put("/{project_id}", response_model=ProjectResponse)
 def update_project(project_id: int, project_update: ProjectUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -78,7 +101,7 @@ def update_project(project_id: int, project_update: ProjectUpdate, db: Session =
         raise HTTPException(status_code=404, detail="Project not found")
     
     team = db.query(Team).filter(Team.id == project.team_id).first()
-    if team.lead_id != current_user.id:
+    if team.lead_id != current_user.id and current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Not authorized to update this project")
 
     
@@ -107,9 +130,11 @@ def delete_project(project_id: int, db: Session = Depends(get_db), current_user:
     team = db.query(Team).filter(Team.id == project.team_id).first()
     if team is None:
         raise HTTPException(status_code=404, detail="Team not found")
-    if team.lead_id != current_user.id:
+    if team.lead_id != current_user.id and current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Not authorized to delete this project")
     
     project_query.delete(synchronize_session=False)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT) 
+
+

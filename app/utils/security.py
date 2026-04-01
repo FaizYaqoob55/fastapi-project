@@ -2,6 +2,7 @@ import os
 import bcrypt
 from datetime import datetime, timedelta
 import jwt
+from jwt.exceptions import InvalidTokenError
 import html
 # from .env import SECRET_KEY as SeCRET_KEY
 from dotenv import load_dotenv
@@ -35,7 +36,7 @@ def create_access_token(data:dict,expires_delta:timedelta |None=None):
     encoded_jwt=jwt.encode(to_encode,SECRET_KEY,algorithm=ALGORITHM)
     return encoded_jwt
 
-def refresh_access_token(data:dict,expires_delta:timedelta |None=None):
+def create_refresh_token(data:dict,expires_delta:timedelta |None=None):
     to_encode=data.copy()
     if expires_delta:
         expire=datetime.utcnow()+expires_delta
@@ -44,6 +45,13 @@ def refresh_access_token(data:dict,expires_delta:timedelta |None=None):
     to_encode.update({'exp':expire})
     encoded_jwt=jwt.encode(to_encode,SECRET_KEY,algorithm=ALGORITHM)
     return encoded_jwt
+
+def decode_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except InvalidTokenError:
+        return None
 
 def sanitize_text(text:str):
     if not text:

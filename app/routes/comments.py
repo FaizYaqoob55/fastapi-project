@@ -1,23 +1,14 @@
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy.orm import Session,joinedload
-from sqlalchemy import asc, desc
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
-from app.models import Project
 from app.schemas.dependencies import (
     get_current_user, 
-    TechnicalResponse,
-    TechnicalDebtCreate,
-    TechnicalDebtUpdate,
     DebtCommentCreate,
     DebtCommentResponse,
-    PriorityUpdate
 )
-from app.models import Project, TechnicalDebt, User, DebtComment,DebtStatusHistory
-from app.model.role import DebtPriority,DebtStatus,UserRole
-from fastapi import Body
+from app.models import TechnicalDebt, User, DebtComment
+from app.model.role import UserRole
 from app.utils.security import sanitize_text
-from app.ratelimit import limiter
 
 router = APIRouter(
     prefix="/comments",
@@ -26,28 +17,30 @@ router = APIRouter(
 
 
 
-@router.post(
-    "/{debt_id}/comments",
-    response_model=DebtCommentResponse
-)
+@router.post("/{debt_id}/comments", response_model=DebtCommentResponse)
 def add_debt_comment(
     debt_id: int,
     data: DebtCommentCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    debt = db.query(TechnicalDebt).filter(
-        TechnicalDebt.id == debt_id
-    ).first()
-
+    # 1. Fetch Debt with Project/Team info
+    debt = db.query(TechnicalDebt).filter(TechnicalDebt.id == debt_id).first()
     if not debt:
-        raise HTTPException(
-            status_code=404,
-            detail="Technical Debt not found"
-        )
-    if current_user.role != UserRole.admin and debt.owner_id != current_user.id:
-        raise HTTPException(status_code=403,detail="Not authorized to add comment to this technical debt")
+        raise HTTPException(status_code=404, detail="Technical Debt not found")
 
+    # 2. Kya user is project ki team ka member hai?
+    is_admin = current_user.role == UserRole.admin
+    is_team_member = any(m.id == current_user.id for m in debt.project.team.members)
+    is_lead = (current_user.role == UserRole.lead and debt.project.team.lead_id == current_user.id)
+
+    if not (is_admin or is_team_member or is_lead):
+        raise HTTPException(
+            status_code=403, 
+            detail="Not authorized to comment on this technical debt. Only project team members, leads, or admins can comment."
+        )
+
+    # 3. Create Comment
     comment = DebtComment(
         debt_id=debt_id,
         user_id=current_user.id,
@@ -59,32 +52,27 @@ def add_debt_comment(
     db.refresh(comment)
     return comment
 
-
-
-
-@router.get(
-    "/{debt_id}/comments",
-    response_model=list[DebtCommentResponse]
-)
+@router.get("/{debt_id}/comments", response_model=list[DebtCommentResponse])
 def get_debt_comments(
     debt_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    debt = db.query(TechnicalDebt).filter(
-        TechnicalDebt.id == debt_id
-    ).first()
+    debt = db.query(TechnicalDebt).filter(TechnicalDebt.id == debt_id).first()
     if not debt:
-        raise HTTPException(
-            status_code=404,
-            detail="Technical Debt not found"
-        )
-    if current_user.role != UserRole.admin and debt.owner_id != current_user.id:
-        raise HTTPException(status_code=403,detail="Not authorized to view comments of this technical debt")
-    return db.query(DebtComment).filter(
+        raise HTTPException(status_code=404, detail="Technical Debt not found")
+
+    is_admin = current_user.role == UserRole.admin
+    is_team_member = any(m.id == current_user.id for m in debt.project.team.members)
+    
+    if not (is_admin or is_team_member):
+        raise HTTPException(status_code=403, detail="Not authorized to view comments.")
+
+    return db.query(DebtComment).options(
+        joinedload(DebtComment.user) 
+    ).filter(
         DebtComment.debt_id == debt_id
     ).order_by(DebtComment.created_at.desc()).all()
-
 
 
 
@@ -94,22 +82,26 @@ def delete_debt_comment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    comment = db.query(DebtComment).filter(
-        DebtComment.id == comment_id
-    ).first()
-
+    comment = db.query(DebtComment).filter(DebtComment.id == comment_id).first()
     if not comment:
-        raise HTTPException(status_code=404,detail="Comment not found")
-    debt = db.query(TechnicalDebt).filter(
-        TechnicalDebt.id == comment.debt_id
-    ).first()   
+        raise HTTPException(status_code=404, detail="Comment not found")
+
+    debt = db.query(TechnicalDebt).filter(TechnicalDebt.id == comment.debt_id).first()
     if not debt:
-        raise HTTPException(status_code=404,detail="Technical Debt not found")
-    if current_user.role != UserRole.admin and debt.owner_id != current_user.id:
-        raise HTTPException(status_code=403,detail="Not authorized to delete this comment")
+        raise HTTPException(status_code=404, detail="Technical Debt not found")
+
+    is_admin = current_user.role == UserRole.admin
+    is_author = comment.user_id == current_user.id  
+    is_team_lead = (current_user.role == UserRole.lead and debt.project.team.lead_id == current_user.id)
+
+    if not (is_admin or is_author or is_team_lead):
+        raise HTTPException(
+            status_code=403, 
+            detail="Not authorized to delete this comment only the author / team lead or admin can delete it"
+        )
+
     db.delete(comment)
     db.commit()
-    return {"message": "Comment deleted"}
-
+    return {"message": "Comment deleted successfully"}
 
 

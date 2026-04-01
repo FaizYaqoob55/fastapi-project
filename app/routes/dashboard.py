@@ -13,7 +13,7 @@ from app.schemas.dependencies import TechnicalDebtDashboardResponse, get_current
 from app.models import GrowthSession, Project, Team, TechnicalDebt, User, Deprecation, DeprecationTimeline
 from app.utils.cache import cache_response
 from fastapi import Request
-from app.model.role import TimeLineStage
+from app.model.role import TimeLineStage,DebtStatus,DebtPriority
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
@@ -107,13 +107,15 @@ def technical_debt_dashboard_endpoint(request: Request, db: Session = Depends(ge
 
 
 @router.get("/technical_debt/export")
-def export_technical_debt_csv(priority: str |None=None ,status: str |None=None, project_id: int |None=None,db: Session = Depends(get_db),current_user: User = Depends(get_current_user)):
+def export_technical_debt_csv(priority: DebtPriority |None=None ,status: DebtStatus |None=None, project_id: int |None=None,db: Session = Depends(get_db),current_user: User = Depends(get_current_user)):
     query = db.query(TechnicalDebt)
     if priority:
         query = query.filter(TechnicalDebt.priority == priority)
     if status:
         query = query.filter(TechnicalDebt.status == status)
     if project_id is not None:
+        if db.query(Project).filter(Project.id == project_id).first() is None:
+            raise HTTPException(status_code=404, detail="Project not found")
         query = query.filter(TechnicalDebt.project_id == project_id)
     debts = query.all()
     output=StringIO()
