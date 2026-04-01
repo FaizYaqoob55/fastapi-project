@@ -1,9 +1,9 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Response, Request
-from app.schemas.dependencies import Usercreate, LoginRequest, get_current_user, requires_role, UserResponse
+from fastapi import FastAPI, Depends, HTTPException, status, Response, Request, Body
+from app.schemas.dependencies import Usercreate, LoginRequest, get_current_user, requires_role, UserResponse, bearer_scheme
 from app.database import engine, Base, get_db
 from sqlalchemy.orm import Session
 from app.models import User, Team, TeamMember, Project
-from app.utils.security import hash_password, verify_password, create_access_token, refresh_access_token
+from app.utils.security import hash_password, verify_password, create_access_token, create_refresh_token, decode_token
 import uvicorn
 from app import models
 from app.routes import action_item, admin, growth_session, mention, project, session_note, team,users,technical_debt, deprecation,deprecation_timeline,comments
@@ -14,7 +14,44 @@ from app.routes.dashboard import router as dashboard_router
 from app.ratelimit import limiter
 
 
-app = FastAPI(title="My FastAPI Application")
+app = FastAPI(
+    title="My FastAPI Application",
+    swagger_ui_parameters={"persistAuthorization": True}
+)
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="My FastAPI Application",
+        version="0.1.0",
+        description="API Documentation with JWT Bearer support",
+        routes=app.routes,
+    )
+    # Register the scheme
+    openapi_schema["components"]["securitySchemes"]["BearerAuth"] = {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+    }
+    
+    # Apply security globally to routes that already have security requirements
+    for path in openapi_schema.get("paths", {}).values():
+        for method in path.values():
+            if "security" in method:
+                # Add BearerAuth as an alternative to existing schemes
+                if not any("BearerAuth" in s for s in method["security"]):
+                    method["security"].append({"BearerAuth": []})
+            else:
+                # Optional: If you want all routes to have it by default, you'd add it here
+                # but it's safer to only add it to routes that already have security.
+                pass
+
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+from fastapi.openapi.utils import get_openapi
+app.openapi = custom_openapi
 
 app.state.limiter = limiter
 # Create database tables
@@ -100,31 +137,26 @@ def update_user(id: int, updated_user: Usercreate, db: Session = Depends(get_db)
     db.commit()
     return user_query.first()
 
+
 @app.post("/login")
 @limiter.limit("5/minute")
 def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == form_data.username).first()
-    if not user:
-        raise HTTPException(status_code=400, detail='Invalid email')
-
-    if not verify_password(form_data.password, user.password):
-        raise HTTPException(status_code=400, detail='Invalid password')
-
-    token_data = {"sub": user.email, "role": user.role.value}
-    access_token = create_access_token(token_data)
-    return {"access_token": access_token, "token_type": "bearer"}
-
-@app.post("/refresh-token")
-def refresh_token(request: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == request.email).first()
-    if not user:
-        raise HTTPException(status_code=400, detail="Invalid token")
-    if not verify_password(request.password, user.password):
-        raise HTTPException(status_code=400, detail="Invalid password")
     
+    if not user or not verify_password(form_data.password, user.password):
+        raise HTTPException(status_code=400, detail="Invalid email or password")
+
     token_data = {"sub": user.email, "role": user.role.value}
-    refresh = refresh_access_token(token_data)
-    return {"refresh_token": refresh, "token_type": "bearer"}
+    
+    access_token = create_access_token(token_data)
+    refresh_token = create_refresh_token(token_data)
+
+    return {
+        "access_token": access_token, 
+        "refresh_token": refresh_token, 
+        "token_type": "bearer"
+    }
+
 
 @app.get('/me')
 @limiter.limit("5/minute")

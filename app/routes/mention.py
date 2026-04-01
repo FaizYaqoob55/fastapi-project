@@ -2,7 +2,7 @@ import re
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User, Notification, TechnicalDebt, DebtComment
-from app.model.role import NotificationType
+from app.model.role import NotificationType, UserRole
 from fastapi import APIRouter, Depends, HTTPException
 from app.schemas.dependencies import (
     get_current_user, 
@@ -10,7 +10,7 @@ from app.schemas.dependencies import (
     DebtCommentResponse,
 )
 from app.utils.security import sanitize_text
-
+from fastapi import BackgroundTasks
 
 router = APIRouter(
     prefix="/mentions",
@@ -48,18 +48,27 @@ def handle_mention(
 
 
 
-@router.post("/{debt_id}/comments",response_model=DebtCommentResponse)
+
+
+@router.post("/{debt_id}/comments", response_model=DebtCommentResponse)
 def add_comment(
-    debt_id:int,
-    comment_data:DebtCommentCreate,
-    db:Session=Depends(get_db),
-    current_user=Depends(get_current_user)
+    debt_id: int,
+    comment_data: DebtCommentCreate,
+    background_tasks: BackgroundTasks, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    debt=db.query(TechnicalDebt).filter(TechnicalDebt.id==debt_id).first()
+    debt = db.query(TechnicalDebt).filter(TechnicalDebt.id == debt_id).first()
     if not debt:
-        raise HTTPException(status_code=404,detail="Technical Debt not found")
+        raise HTTPException(status_code=404, detail="Technical Debt not found")
     
-    comment=DebtComment(
+    is_admin = current_user.role == UserRole.admin
+    is_team_member = any(m.id == current_user.id for m in debt.project.team.members)
+    
+    if not (is_admin or is_team_member):
+        raise HTTPException(status_code=403, detail="You are not member of the project team, so you cannot comment.")
+
+    comment = DebtComment(
         debt_id=debt_id,
         user_id=current_user.id,
         comment=sanitize_text(comment_data.comment)
@@ -68,6 +77,12 @@ def add_comment(
     db.commit()
     db.refresh(comment)
 
-    handle_mention(comment_text=comment_data.comment,db=db,sender_id=current_user.id)
+    background_tasks.add_task(
+        handle_mention, 
+        comment_text=comment_data.comment, 
+        db=db, 
+        sender_id=current_user.id,
+        debt_id=debt_id 
+    )
 
     return comment

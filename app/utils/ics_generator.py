@@ -1,34 +1,34 @@
-from datetime import datetime, date
-
+from datetime import datetime, date, time
 
 def generate_ics_file(session):
-        try:
-                from ics import Calendar, Event
-        except ModuleNotFoundError:
-                raise RuntimeError("Missing dependency 'ics'. Install with: pip install ics")
+    try:
+        from ics import Calendar, Event
+        import pytz
+    except ModuleNotFoundError:
+        raise RuntimeError("Missing dependency 'ics' or 'pytz'. Please ensure they are installed.")
 
-        cal = Calendar()
-        event = Event()
-        event.name = session.title
-        # Use start_time and end_time if available
-        if hasattr(session, 'start_time') and session.start_time:
-                # Combine session.date with session.start_time to ensure correct day and time
-                event.begin = datetime.combine(session.date, session.start_time.time())
-        elif isinstance(session.date, datetime):
-                event.begin = session.date
-        elif isinstance(session.date, date):
-                event.begin = datetime.combine(session.date, datetime.min.time())
-        else:
-                event.begin = session.date
+    # User's local timezone
+    local_tz = pytz.timezone("Asia/Karachi")
 
-        if hasattr(session, 'end_time') and session.end_time:
-                event.end = datetime.combine(session.date, session.end_time.time())
+    cal = Calendar()
+    event = Event()
+    event.name = session.title
 
-        event.description = "Growth session"
-        if getattr(session, 'meeting_link', None):
-                event.url = session.meeting_link
-        if getattr(session, 'location', None):
-                event.location = session.location
+    # Combine date and time and make it timezone-aware
+    if session.date and session.start_time:
+        s_time = session.start_time if isinstance(session.start_time, time) else session.start_time.time()
+        start_dt = datetime.combine(session.date, s_time)
+        event.begin = local_tz.localize(start_dt)
+    
+    if session.date and session.end_time:
+        e_time = session.end_time if isinstance(session.end_time, time) else session.end_time.time()
+        end_dt = datetime.combine(session.date, e_time)
+        event.end = local_tz.localize(end_dt)
 
-        cal.events.add(event)
-        return cal.serialize()
+    event.description = f"Growth session for team"
+    # Baqi metadata
+    if hasattr(session, 'meeting_link') and session.meeting_link:
+        event.url = session.meeting_link
+        
+    cal.events.add(event)
+    return cal.serialize()

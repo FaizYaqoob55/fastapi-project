@@ -16,83 +16,127 @@ router = APIRouter(
 
 
 @router.post("/deprecations/{deprecation_id}/timeline")
-def create_deprecation_timeline(deprecation_id:int, timeline:DeprecationTimelineCreate,current_user:User=Depends(get_current_user),db:Session=Depends(get_db)):
-    deprecation = db.query(Deprecation).filter(Deprecation.id == deprecation_id).first()
+def create_deprecation_timeline(
+    deprecation_id: int, 
+    timeline_data: DeprecationTimelineCreate,
+    current_user: User = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
+    # 1. Fetch Deprecation with Project/Team Info (Optimized)
+    deprecation = db.query(Deprecation).join(Project).filter(Deprecation.id == deprecation_id).first()
+    
     if not deprecation:
-        raise HTTPException(status_code=404,detail="Deprecation not found")
-    if current_user.role != UserRole.admin and deprecation_id not in (
-        db.query(Deprecation.id).filter(Deprecation.project_id.in_(
-            db.query(Project.id).filter(Project.team_id == current_user.team_id).all()
-        )).all()
-    ):
-        raise HTTPException(status_code=403,detail="Not authorized to create timeline for this deprecation")
-    timeline = DeprecationTimeline(deprecation_id=deprecation_id,stage=timeline.stage,planned_date=timeline.planned_date,notes=sanitize_text(timeline.notes))
-    existing_timeline = db.query(DeprecationTimeline).filter(DeprecationTimeline.deprecation_id == deprecation_id,DeprecationTimeline.stage == timeline.stage).first()
-    if existing_timeline:
-        raise HTTPException(status_code=400,detail="Timeline already exists")
+        raise HTTPException(status_code=404, detail="Deprecation notice not found.")
 
+    # 2. RBAC Check (Admin or Team Member)
+    user_team_ids = [t.id for t in current_user.teams]
+    if current_user.role != UserRole.admin and deprecation.project.team_id not in user_team_ids:
+        raise HTTPException(status_code=403, detail="Not authorized to create timeline for this deprecation.")
 
-   
+    # 3. Check if Stage already exists (Ek stage ek hi baar honi chahiye)
+    existing = db.query(DeprecationTimeline).filter(
+        DeprecationTimeline.deprecation_id == deprecation_id,
+        DeprecationTimeline.stage == timeline_data.stage
+    ).first()
+    
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Stage '{timeline_data.stage}' stage already exists.")
+    new_timeline = DeprecationTimeline(
+        deprecation_id=deprecation_id,
+        stage=timeline_data.stage,
+        planned_date=timeline_data.planned_date,
+        notes=sanitize_text(timeline_data.notes)
+    )
 
-    db.add(timeline)
+    db.add(new_timeline)
     db.commit()
-    db.refresh(timeline)
-    return timeline
+    db.refresh(new_timeline)
+    return new_timeline
+
 
 @router.get("/deprecations/{deprecation_id}/timeline")
-def get_deprecation_timeline(deprecation_id:int,db:Session=Depends(get_db),current_user:User=Depends(get_current_user)):
-    timeline = db.query(DeprecationTimeline).filter(DeprecationTimeline.deprecation_id == deprecation_id).all()
-    if not timeline:
-        raise HTTPException(status_code=404,detail="Timeline not found")
-    if current_user.role != UserRole.admin and deprecation_id not in (
-        db.query(Deprecation.id).filter(Deprecation.project_id.in_(
-            db.query(Project.id).filter(Project.team_id == current_user.team_id).all()
-        )).all()
-    ):
-        raise HTTPException(status_code=403,detail="Not authorized to view this timeline")
-    return timeline 
+def get_deprecation_timeline(
+    deprecation_id: int, 
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
+    deprecation = db.query(Deprecation).filter(Deprecation.id == deprecation_id).first()
+    
+    if not deprecation:
+        raise HTTPException(status_code=404, detail="Deprecation notice not found.")
 
+    user_team_ids = [t.id for t in current_user.teams]
+    if current_user.role != UserRole.admin and deprecation.project.team_id not in user_team_ids:
+        raise HTTPException(status_code=403, detail="Not authorized to view this timeline.")
 
+    return db.query(DeprecationTimeline).filter(
+        DeprecationTimeline.deprecation_id == deprecation_id
+    ).order_by(DeprecationTimeline.planned_date.asc()).all()
 
 @router.put("/deprecations/{deprecation_id}/timeline/{timeline_id}")
-def update_deprecation_timeline(deprecation_id:int,timeline_id:int,timeline:DeprecationTimelineCreate,current_user:User=Depends(get_current_user),db:Session=Depends(get_db)):
-    deprecation = db.query(Deprecation).filter(Deprecation.id == deprecation_id).first()
-    if not deprecation:
-        raise HTTPException(status_code=404,detail="Deprecation not found")
-    if current_user.role != UserRole.admin and deprecation_id not in (
-        db.query(Deprecation.id).filter(Deprecation.project_id.in_(
-            db.query(Project.id).filter(Project.team_id == current_user.team_id).all()
-        )).all()
-    ):
-        raise HTTPException(status_code=403,detail="Not authorized to update this timeline")
-    timeline_obj = db.query(DeprecationTimeline).filter(DeprecationTimeline.id == timeline_id).first()
+def update_deprecation_timeline(
+    deprecation_id: int, 
+    timeline_id: int, 
+    timeline_data: DeprecationTimelineCreate, 
+    current_user: User = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
+    # 1. Fetch Timeline and verify it belongs to the Deprecation
+    timeline_obj = db.query(DeprecationTimeline).filter(
+        DeprecationTimeline.id == timeline_id,
+        DeprecationTimeline.deprecation_id == deprecation_id
+    ).first()
+
     if not timeline_obj:
-        raise HTTPException(status_code=404,detail="Timeline not found")
+        raise HTTPException(status_code=404, detail="Timeline record not found.")
+
+    # 2. RBAC Check using Joins (Fastest way)
+    dep = db.query(Deprecation).join(Project).filter(Deprecation.id == deprecation_id).first()
+    
+    user_team_ids = [t.id for t in current_user.teams]
+    if current_user.role != UserRole.admin and dep.project.team_id not in user_team_ids:
+        raise HTTPException(status_code=403, detail="Not authorized to update.")
+
+    # 3. Status Lock logic
     if timeline_obj.stage == TimeLineStage.removed:
-        raise HTTPException(status_code=400,detail="Timeline already removed")
-    timeline_obj.stage = timeline.stage
-    timeline_obj.planned_date = timeline.planned_date
-    timeline_obj.notes = sanitize_text(timeline.notes)
+        raise HTTPException(status_code=400, detail="Removed stage not allowed to be updated.")
+
+    # 4. Update with Sanitization
+    timeline_obj.stage = timeline_data.stage
+    timeline_obj.planned_date = timeline_data.planned_date
+    timeline_obj.notes = sanitize_text(timeline_data.notes)
+    
     db.commit()
     db.refresh(timeline_obj)
     return timeline_obj
 
+
 @router.delete("/deprecations/{deprecation_id}/timeline/{timeline_id}")
-def delete_deprecation_timeline(deprecation_id:int,timeline_id:int,current_user:User=Depends(get_current_user),db:Session=Depends(get_db)):
-    deprecation = db.query(Deprecation).filter(Deprecation.id == deprecation_id).first()
-    if not deprecation:
-        raise HTTPException(status_code=404,detail="Deprecation not found")
-    if current_user.role != UserRole.admin and deprecation_id not in (
-        db.query(Deprecation.id).filter(Deprecation.project_id.in_(
-            db.query(Project.id).filter(Project.team_id == current_user.team_id).all()
-        )).all()
-    ):
-        raise HTTPException(status_code=403,detail="Not authorized to delete this timeline")
-    timeline = db.query(DeprecationTimeline).filter(DeprecationTimeline.id == timeline_id).first()
+def delete_deprecation_timeline(
+    deprecation_id: int, 
+    timeline_id: int, 
+    current_user: User = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
+    # 1. Fetch & Verify Ownership
+    timeline = db.query(DeprecationTimeline).filter(
+        DeprecationTimeline.id == timeline_id,
+        DeprecationTimeline.deprecation_id == deprecation_id
+    ).first()
+
     if not timeline:
-        raise HTTPException(status_code=404,detail="Timeline not found")
+        raise HTTPException(status_code=404, detail="Timeline record not found.")
+
+    # 2. Security Check
+    dep = db.query(Deprecation).join(Project).filter(Deprecation.id == deprecation_id).first()
+    user_team_ids = [t.id for t in current_user.teams]
+    
+    if current_user.role != UserRole.admin and dep.project.team_id not in user_team_ids:
+        raise HTTPException(status_code=403, detail="Not authorized to delete.")
+
     if timeline.stage == TimeLineStage.removed:
-        raise HTTPException(status_code=400,detail="Timeline already removed")
+        raise HTTPException(status_code=400, detail="Historical records not allowed to be deleted.")
+
     db.delete(timeline)
     db.commit()
-    return {"message":"Timeline deleted successfully"}
+    return {"message": "Timeline deleted successfully"}

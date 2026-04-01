@@ -15,13 +15,17 @@ router = APIRouter(
 
 @router.post("/", response_model=TeamResponse,status_code=status.HTTP_201_CREATED)
 def create_team(team: TeamCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    new_team = Team(name=team.name, lead_id=current_user.id)
+    new_team = Team(name=team.name, lead_id=team.lead_id) 
     existing_team = db.query(Team).filter(Team.name == team.name).first()
     if existing_team:
         raise HTTPException(status_code=400, detail="Team name already exists")
     if current_user.role not in [UserRole.admin]:
         raise HTTPException(status_code=403, detail="Not authorized to create teams")
-
+    lead_user=db.query(User).filter(User.id == team.lead_id).first()
+    if not lead_user:
+        raise HTTPException(status_code=404, detail="Lead user not found")
+    if lead_user.role != UserRole.admin:
+        lead_user.role = "lead"
     db.add(new_team)
     db.commit()
     db.refresh(new_team)
@@ -34,18 +38,34 @@ def get_teams(db: Session = Depends(get_db), current_user: User = Depends(get_cu
     teams = db.query(Team).all()
     return teams
 
+@router.get("/{team_id}", response_model=TeamResponse)
+def get_team(team_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    team = db.query(Team).filter(Team.id == team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    is_member_of_this_team = any(member.id == current_user.id for member in team.members)
+    if team.lead_id != current_user.id and current_user.role != UserRole.admin and not is_member_of_this_team:
+        raise HTTPException(status_code=403, detail="Not authorized to view this team")
+    return team
+
 @router.put("/{team_id}", response_model=TeamResponse)
 def update_team(team_id: int, team_update: TeamUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
-    if team.lead_id != current_user.id:
+    if team.lead_id != current_user.id and current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Not authorized to update this team")
     if team_update.name:
         existing_team = db.query(Team).filter(Team.name == team_update.name).first()
         if existing_team and existing_team.id != team_id:
             raise HTTPException(status_code=400, detail="Team name already exists")
-
+    if team_update.lead_id is not None:
+        lead_user = db.query(User).filter(User.id == team_update.lead_id).first()
+        if not lead_user:
+            raise HTTPException(status_code=404, detail="Lead user not found")
+        team.lead_id = team_update.lead_id
+    if lead_user.role != UserRole.admin:
+        lead_user.role = "lead"
     if team_update.name:
         team.name = team_update.name
     db.commit()
@@ -55,21 +75,30 @@ def update_team(team_id: int, team_update: TeamUpdate, db: Session = Depends(get
 
 
 
+
+
+
 @router.post("/{team_id}/members")
 def add_member(team_id: int, member: TeamMemberCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
-    if team.lead_id != current_user.id:
+    if team.lead_id != current_user.id and current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Not authorized to add members to this team")
     user = db.query(User).filter(User.id == member.user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if user in team.members:
         raise HTTPException(status_code=400, detail="User is already a member of the team")
+    user.role = UserRole.developer
     team.members.append(user)
     db.commit()
     return {"message": "Member added successfully"}
+
+
+
+
+
 
 @router.delete("/{team_id}/remove-member")
 def remove_member(team_id: int, member: TeamMemberCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -99,3 +128,4 @@ def delete_team(team_id: int, db: Session = Depends(get_db), current_user: User 
     db.delete(team)
     db.commit()
     return {"message": "Team deleted successfully"}
+
