@@ -143,7 +143,7 @@ class NotificationResponse(BaseModel):
     type:NotificationType
     message:str
     is_read:bool
-    created_at:datetime
+    created_at:datetime = now().strftime("%Y-%m-%d %H:%M:%S")
     class Config:
         from_attributes =True
 

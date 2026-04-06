@@ -22,7 +22,8 @@ router = APIRouter(
 def handle_mention(
         comment_text:str,
         db:Session,
-        sender_id:int
+        sender_id:int,
+        debt_id=int
 ):
     mentioned_usernames=re.findall(r'@(\w+)',comment_text)
     emails=re.findall(r'[\w\.-]+@[\w\.-]+', comment_text)
@@ -57,6 +58,7 @@ def add_comment(
     background_tasks: BackgroundTasks, 
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
+    
 ):
     debt = db.query(TechnicalDebt).filter(TechnicalDebt.id == debt_id).first()
     if not debt:
@@ -82,7 +84,7 @@ def add_comment(
         comment_text=comment_data.comment, 
         db=db, 
         sender_id=current_user.id,
-        debt_id=debt_id 
+        debt_id=debt_id
     )
 
     return comment
