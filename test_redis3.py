@@ -24,3 +24,4 @@ except redis.RedisError as e:
 end2 = time.time()
 print(f"Time taken 1: {end1 - start:.2f} seconds")
 print(f"Time taken 2: {end2 - end1:.2f} seconds")
+ 

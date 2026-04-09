@@ -55,7 +55,9 @@ app.openapi = custom_openapi
 
 app.state.limiter = limiter
 # Create database tables
-Base.metadata.create_all(bind=engine)
+# Create database tables (Optional: Commented out as Alembic is being used for migrations)
+# Base.metadata.create_all(bind=engine)
+
 
 
 
