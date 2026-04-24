@@ -21,7 +21,7 @@ Base=declarative_base()
 
 
 def get_db():
-    db = SessionLocal()
+    db = Sessionlocal()
     try:
         yield db
     finally:
