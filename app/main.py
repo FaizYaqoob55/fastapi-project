@@ -55,7 +55,11 @@ app.openapi = custom_openapi
 
 app.state.limiter = limiter
 # Create database tables
-Base.metadata.create_all(bind=engine)
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"Warning: Could not create database tables at startup: {e}")
+    print("Ensure the database is running and accessible before making requests.")
 
 
 

@@ -7,15 +7,14 @@ from sqlalchemy.orm import sessionmaker
 
 load_dotenv()
 
-SQLALCHEMY_DATABASE_URL=os.getenv('DB_CONNECTION')
+SQLALCHEMY_DATABASE_URL = os.getenv('DB_CONNECTION')
 
-engine=create_engine(SQLALCHEMY_DATABASE_URL,echo=True)
+engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=True)
 
-Sessionlocal=sessionmaker(
+Sessionlocal = sessionmaker(
     autocommit=False,
     autoflush=False,
-    bind=engine 
-
+    bind=engine
 )
 
 Base=declarative_base()

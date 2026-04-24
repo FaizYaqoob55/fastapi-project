@@ -104,4 +104,32 @@ def delete_debt_comment(
     db.commit()
     return {"message": "Comment deleted successfully"}
 
+@router.put("/comments/{comment_id}", response_model=DebtCommentResponse)   
+def update_debt_comment(
+    comment_id: int,
+    data: DebtCommentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    comment = db.query(DebtComment).filter(DebtComment.id == comment_id).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
 
+    debt = db.query(TechnicalDebt).filter(TechnicalDebt.id == comment.debt_id).first()
+    if not debt:
+        raise HTTPException(status_code=404, detail="Technical Debt not found")
+
+    is_admin = current_user.role == UserRole.admin
+    is_author = comment.user_id == current_user.id  
+    is_team_lead = (current_user.role == UserRole.lead and debt.project.team.lead_id == current_user.id)
+
+    if not (is_admin or is_author or is_team_lead):
+        raise HTTPException(
+            status_code=403, 
+            detail="Not authorized to update this comment only the author / team lead or admin can update it"
+        )
+
+    comment.comment = sanitize_text(data.comment)
+    db.commit()
+    db.refresh(comment)
+    return comment
